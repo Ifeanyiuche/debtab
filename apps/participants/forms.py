@@ -47,13 +47,31 @@ class TeamForm(forms.ModelForm):
     def __init__(self, tournament, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.tournament = tournament
-        speakers = Speaker.objects.filter(tournament=tournament).order_by("name")
-        self.fields["speaker_1"].queryset = speakers
-        self.fields["speaker_2"].queryset = speakers
         self.fields["institution"].queryset = Institution.objects.filter(tournament=tournament)
         self.fields["institution"].required = False
 
-        # Pre-fill speaker dropdowns when editing
+        # Speakers already assigned to any team in this tournament
+        assigned_pks = set(
+            Speaker.objects.filter(tournament=tournament, teams__isnull=False)
+            .values_list("pk", flat=True)
+        )
+
+        # When editing, keep this team's own speakers visible in the dropdowns
+        own_speaker_pks = set()
+        if self.instance.pk:
+            own_speaker_pks = set(self.instance.speakers.values_list("pk", flat=True))
+
+        # Available = unassigned + already on THIS team
+        available = Speaker.objects.filter(
+            tournament=tournament
+        ).exclude(
+            pk__in=assigned_pks - own_speaker_pks
+        ).order_by("name")
+
+        self.fields["speaker_1"].queryset = available
+        self.fields["speaker_2"].queryset = available
+
+        # Pre-fill dropdowns when editing
         if self.instance.pk:
             existing = list(self.instance.speakers.all())
             if len(existing) >= 1:
