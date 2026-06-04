@@ -29,6 +29,13 @@ class Tournament(models.Model):
     wsdc_content_weight = models.PositiveIntegerField(default=40)
     wsdc_style_weight = models.PositiveIntegerField(default=40)
     wsdc_strategy_weight = models.PositiveIntegerField(default=20)
+    # Public Speaking scoring
+    ps_score_min = models.PositiveIntegerField(default=0)
+    ps_score_max = models.PositiveIntegerField(default=100)
+    ps_delivery_weight = models.PositiveIntegerField(default=25)
+    ps_content_weight = models.PositiveIntegerField(default=25)
+    ps_structure_weight = models.PositiveIntegerField(default=25)
+    ps_language_weight = models.PositiveIntegerField(default=25)
 
     active = models.BooleanField(default=True)
     public_tab_released = models.BooleanField(default=False)

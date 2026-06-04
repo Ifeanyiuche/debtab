@@ -9,9 +9,13 @@ class TournamentForm(forms.ModelForm):
             "name", "short_name", "format",
             "num_prelim_rounds",
             "speaker_score_min", "speaker_score_max",
-            # WSDC-only fields — hidden for BP/PS via JavaScript
+            # WSDC-only
             "reply_score_min", "reply_score_max",
             "wsdc_content_weight", "wsdc_style_weight", "wsdc_strategy_weight",
+            # PS-only
+            "ps_score_min", "ps_score_max",
+            "ps_delivery_weight", "ps_content_weight",
+            "ps_structure_weight", "ps_language_weight",
         ]
         widgets = {
             "name": forms.TextInput(attrs={"placeholder": "e.g. Uhuru IV 2026"}),
@@ -22,19 +26,26 @@ class TournamentForm(forms.ModelForm):
             "wsdc_content_weight": forms.NumberInput(attrs={"class": "wsdc-only-field"}),
             "wsdc_style_weight": forms.NumberInput(attrs={"class": "wsdc-only-field"}),
             "wsdc_strategy_weight": forms.NumberInput(attrs={"class": "wsdc-only-field"}),
+            "ps_score_min": forms.NumberInput(attrs={"class": "ps-only-field"}),
+            "ps_score_max": forms.NumberInput(attrs={"class": "ps-only-field"}),
+            "ps_delivery_weight": forms.NumberInput(attrs={"class": "ps-only-field"}),
+            "ps_content_weight": forms.NumberInput(attrs={"class": "ps-only-field"}),
+            "ps_structure_weight": forms.NumberInput(attrs={"class": "ps-only-field"}),
+            "ps_language_weight": forms.NumberInput(attrs={"class": "ps-only-field"}),
         }
         help_texts = {
             "num_prelim_rounds": "Optional — you can set or change this at any time.",
-            "reply_score_min": "WSDC only — reply speech minimum score.",
-            "reply_score_max": "WSDC only — reply speech maximum score.",
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Mark WSDC-only fields so the template can wrap them in a toggle section
-        wsdc_only = ["reply_score_min", "reply_score_max",
-                     "wsdc_content_weight", "wsdc_style_weight", "wsdc_strategy_weight"]
-        for field in wsdc_only:
+        optional = [
+            "reply_score_min", "reply_score_max",
+            "wsdc_content_weight", "wsdc_style_weight", "wsdc_strategy_weight",
+            "ps_score_min", "ps_score_max",
+            "ps_delivery_weight", "ps_content_weight", "ps_structure_weight", "ps_language_weight",
+        ]
+        for field in optional:
             self.fields[field].required = False
 
 

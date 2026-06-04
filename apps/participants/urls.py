@@ -1,5 +1,7 @@
 ﻿from django.urls import path
 from . import views
+from .batch_views import batch_upload
+from .management_views import participant_manage
 
 urlpatterns = [
     path("participants/institutions/", views.institution_list, name="institution_list"),
@@ -24,7 +26,9 @@ urlpatterns = [
 
     path("participants/check-in/", views.check_in, name="check_in"),
 
-    # Unified participant registration
+    # Unified participant hub
     path("participants/", views.participant_list, name="participant_list"),
     path("participants/register/", views.participant_register, name="participant_register"),
+    path("participants/batch/", batch_upload, name="batch_upload"),
+    path("participants/<int:pk>/manage/", participant_manage, name="participant_manage"),
 ]

@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Batch Upload — {{ tournament.name }}{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <h3 class="fw-bold mb-2"><i class="bi bi-upload text-primary"></i> Batch Upload Participants</h3>
+    <p class="text-muted mb-4">Add multiple participants at once by pasting names or uploading a CSV file.</p>
+
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white fw-semibold">Option 1 — Paste Names</div>
+      <div class="card-body">
+        <form method="post" enctype="multipart/form-data">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="parse">
+          <label class="form-label">One person per line. Format:</label>
+          <code class="d-block mb-2 text-muted small">Name, Institution, Email, Role (speaker/adjudicator), Categories (ESL/EFL/Novice/Schools)</code>
+          <code class="d-block mb-3 text-muted small">Example: Godswill Ifeanyichukwu, UCL, g@email.com, speaker, ESL</code>
+          <textarea name="paste_text" class="form-control font-monospace" rows="10"
+            placeholder="Godswill Ifeanyichukwu, UCL, , speaker, ESL
+Chantelle Mukabi, UNILAG, , speaker
+Brian Kibet, , , adjudicator
+Avi Vijayvergiya, IIT Dehli, avi@iit.ac.in, adjudicator"></textarea>
+          <button type="submit" class="btn btn-primary mt-3"><i class="bi bi-eye"></i> Preview Participants</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white fw-semibold">Option 2 — Upload CSV File</div>
+      <div class="card-body">
+        <p class="text-muted small">CSV columns (header row required): <code>name, institution, email, role, categories</code></p>
+        <form method="post" enctype="multipart/form-data">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="parse">
+          <div class="mb-3">
+            <input type="file" name="csv_file" class="form-control" accept=".csv">
+          </div>
+          <button type="submit" class="btn btn-primary"><i class="bi bi-file-earmark-spreadsheet"></i> Upload and Preview</button>
+        </form>
+        <div class="mt-3">
+          <a href="#" onclick="downloadTemplate()" class="btn btn-outline-secondary btn-sm"><i class="bi bi-download"></i> Download CSV Template</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-3 text-muted small">
+      <i class="bi bi-info-circle"></i> After previewing, you can edit each person's details, role, and team assignment before confirming.
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+function downloadTemplate() {
+  var csv = "name,institution,email,role,categories\nJohn Smith,UCL,john@ucl.ac.uk,speaker,ESL\nJane Doe,Oxford,,speaker,\nBrian Judge,,,adjudicator,";
+  var blob = new Blob([csv], {type: "text/csv"});
+  var a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "participants_template.csv";
+  a.click();
+}
+</script>
+{% endblock %}

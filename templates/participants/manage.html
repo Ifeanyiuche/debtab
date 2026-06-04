@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block title %}Manage {{ obj.name }} — {{ tournament.name }}{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-6">
+    <h3 class="fw-bold mb-4">
+      <i class="bi bi-person-gear text-warning"></i> Manage Participant
+    </h3>
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-4">
+        <form method="post">
+          {% csrf_token %}
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Full Name *</label>
+            <input type="text" name="name" value="{{ obj.name }}" class="form-control" required>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Role</label>
+            <select name="role" id="id_role_manage" class="form-select">
+              <option value="speaker" {% if current_role == "speaker" %}selected{% endif %}>Speaker / Debater</option>
+              <option value="adjudicator" {% if current_role == "adjudicator" %}selected{% endif %}>Adjudicator / Judge</option>
+            </select>
+            <div class="form-text text-warning">
+              <i class="bi bi-exclamation-triangle"></i> Changing the role will move this person to a new record.
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Institution</label>
+            <select name="institution" class="form-select">
+              <option value="">— None / Independent —</option>
+              {% for inst in institutions %}
+              <option value="{{ inst.pk }}" {% if obj.institution_id == inst.pk %}selected{% endif %}>{{ inst.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Email</label>
+            <input type="email" name="email" value="{{ obj.email }}" class="form-control" placeholder="Optional">
+          </div>
+
+          <!-- Speaker fields -->
+          <div id="spk-fields">
+            <hr>
+            <p class="text-muted small fw-semibold mb-2">ELIGIBILITY CATEGORIES</p>
+            <div class="row g-2">
+              <div class="col-6"><div class="form-check"><input class="form-check-input" type="checkbox" name="is_esl" {% if obj.is_esl %}checked{% endif %}><label class="form-check-label">ESL</label></div></div>
+              <div class="col-6"><div class="form-check"><input class="form-check-input" type="checkbox" name="is_efl" {% if obj.is_efl %}checked{% endif %}><label class="form-check-label">EFL</label></div></div>
+              <div class="col-6"><div class="form-check"><input class="form-check-input" type="checkbox" name="is_novice" {% if obj.is_novice %}checked{% endif %}><label class="form-check-label">Novice</label></div></div>
+              <div class="col-6"><div class="form-check"><input class="form-check-input" type="checkbox" name="is_schools" {% if obj.is_schools %}checked{% endif %}><label class="form-check-label">Schools</label></div></div>
+            </div>
+
+            <hr>
+            <p class="text-muted small fw-semibold mb-2">TEAM ASSIGNMENT</p>
+            {% if current_teams %}
+            <div class="mb-2">
+              <p class="small mb-1">Current teams:</p>
+              {% for team in current_teams %}
+              <span class="badge bg-primary me-1">{{ team.name }}</span>
+              {% endfor %}
+            </div>
+            {% endif %}
+            <select name="team_action" class="form-select mb-2" id="teamAction">
+              <option value="keep">Keep current team assignment</option>
+              <option value="assign">Add to a team</option>
+              <option value="move">Move to a different team (remove from current)</option>
+              <option value="remove_all">Remove from all teams</option>
+              <option value="create_team">Create new team and assign</option>
+            </select>
+            <div id="team-select-div" style="display:none;">
+              <select name="assign_team_id" class="form-select">
+                <option value="">— Select team —</option>
+                {% for team in teams %}
+                <option value="{{ team.pk }}">{{ team.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div id="new-team-div" style="display:none;">
+              <input type="text" name="new_team_name" class="form-control" placeholder="New team name e.g. The Jokers">
+            </div>
+          </div>
+
+          <!-- Adjudicator fields -->
+          <div id="adj-fields" style="display:none;">
+            <hr>
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Judge Score</label>
+              <input type="number" name="base_score" value="{% if current_role == 'adjudicator' %}{{ obj.base_score }}{% else %}1.5{% endif %}" class="form-control" step="0.5" min="0" max="5">
+              <div class="form-text">0=trainee | 1=panellist | 2=chair | 3=senior chair</div>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="independent" {% if current_role == "adjudicator" and obj.independent %}checked{% endif %}>
+              <label class="form-check-label">Independent adjudicator</label>
+            </div>
+          </div>
+
+          <div class="d-flex gap-2 mt-4">
+            <button type="submit" class="btn btn-primary">Save Changes</button>
+            <a href="{% url 'participant_list' slug=tournament.slug %}" class="btn btn-outline-secondary">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+(function () {
+  var roleSelect = document.getElementById("id_role_manage");
+  var spkFields = document.getElementById("spk-fields");
+  var adjFields = document.getElementById("adj-fields");
+  var teamAction = document.getElementById("teamAction");
+  var teamSelectDiv = document.getElementById("team-select-div");
+  var newTeamDiv = document.getElementById("new-team-div");
+
+  function toggleRole() {
+    var isAdj = roleSelect.value === "adjudicator";
+    spkFields.style.display = isAdj ? "none" : "block";
+    adjFields.style.display = isAdj ? "block" : "none";
+  }
+  function toggleTeamAction() {
+    var val = teamAction.value;
+    teamSelectDiv.style.display = (val === "assign" || val === "move") ? "block" : "none";
+    newTeamDiv.style.display = val === "create_team" ? "block" : "none";
+  }
+
+  roleSelect.addEventListener("change", toggleRole);
+  teamAction.addEventListener("change", toggleTeamAction);
+  toggleRole();
+  toggleTeamAction();
+})();
+</script>
+{% endblock %}

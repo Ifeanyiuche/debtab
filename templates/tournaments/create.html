@@ -1,4 +1,4 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 {% block title %}New Tournament — DebTab{% endblock %}
 {% block content %}
 <div class="row justify-content-center">
@@ -6,17 +6,15 @@
     <h2 class="fw-bold mb-4"><i class="bi bi-plus-circle text-primary"></i> Create Tournament</h2>
     <div class="card border-0 shadow-sm">
       <div class="card-body p-4">
-        <form method="post" id="tournamentForm">
+        <form method="post">
           {% csrf_token %}
-
-          <!-- Basic fields -->
           <div class="mb-3">
             <label class="form-label fw-semibold">Tournament Name *</label>
             {{ form.name }}{% if form.name.errors %}<div class="text-danger small">{{ form.name.errors }}</div>{% endif %}
           </div>
           <div class="mb-3">
             <label class="form-label fw-semibold">Short Name</label>
-            {{ form.short_name }}{% if form.short_name.errors %}<div class="text-danger small">{{ form.short_name.errors }}</div>{% endif %}
+            {{ form.short_name }}
           </div>
           <div class="mb-3">
             <label class="form-label fw-semibold">Format *</label>
@@ -25,65 +23,53 @@
           <div class="mb-3">
             <label class="form-label fw-semibold">Number of Preliminary Rounds</label>
             {{ form.num_prelim_rounds }}
-            <div class="form-text">{{ form.num_prelim_rounds.help_text }}</div>
+            <div class="form-text">Optional — can be changed at any time during the tournament.</div>
           </div>
-
-          <!-- Speaker scores — shown for all formats -->
           <div class="mb-3">
             <label class="form-label fw-semibold">Speaker Score Range</label>
             <div class="row g-2">
-              <div class="col-6">
-                <div class="input-group">
-                  <span class="input-group-text">Min</span>{{ form.speaker_score_min }}
-                </div>
+              <div class="col-6"><div class="input-group"><span class="input-group-text">Min</span>{{ form.speaker_score_min }}</div></div>
+              <div class="col-6"><div class="input-group"><span class="input-group-text">Max</span>{{ form.speaker_score_max }}</div></div>
+            </div>
+          </div>
+
+          <!-- WSDC-only -->
+          <div id="wsdc-fields" style="display:none;">
+            <hr><div class="alert alert-info py-2 mb-3"><i class="bi bi-info-circle"></i> <strong>WSDC / World Schools Settings</strong></div>
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Reply Speech Score Range</label>
+              <div class="row g-2">
+                <div class="col-6"><div class="input-group"><span class="input-group-text">Min</span>{{ form.reply_score_min }}</div></div>
+                <div class="col-6"><div class="input-group"><span class="input-group-text">Max</span>{{ form.reply_score_max }}</div></div>
               </div>
-              <div class="col-6">
-                <div class="input-group">
-                  <span class="input-group-text">Max</span>{{ form.speaker_score_max }}
-                </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Scoring Weights (Content + Style + Strategy = 100)</label>
+              <div class="row g-2">
+                <div class="col-4"><div class="input-group"><span class="input-group-text small">Content</span>{{ form.wsdc_content_weight }}</div></div>
+                <div class="col-4"><div class="input-group"><span class="input-group-text small">Style</span>{{ form.wsdc_style_weight }}</div></div>
+                <div class="col-4"><div class="input-group"><span class="input-group-text small">Strategy</span>{{ form.wsdc_strategy_weight }}</div></div>
               </div>
             </div>
           </div>
 
-          <!-- WSDC-only fields — hidden by default, shown via JS when WSDC selected -->
-          <div id="wsdc-fields" style="display:none;">
-            <hr>
-            <div class="alert alert-info py-2 mb-3">
-              <i class="bi bi-info-circle"></i> <strong>WSDC Settings</strong> — these only apply to World Schools format.
-            </div>
+          <!-- PS-only -->
+          <div id="ps-fields" style="display:none;">
+            <hr><div class="alert alert-success py-2 mb-3"><i class="bi bi-mic"></i> <strong>Public Speaking Settings</strong></div>
             <div class="mb-3">
-              <label class="form-label fw-semibold">Reply Speech Score Range</label>
+              <label class="form-label fw-semibold">Score Range</label>
               <div class="row g-2">
-                <div class="col-6">
-                  <div class="input-group">
-                    <span class="input-group-text">Min</span>{{ form.reply_score_min }}
-                  </div>
-                </div>
-                <div class="col-6">
-                  <div class="input-group">
-                    <span class="input-group-text">Max</span>{{ form.reply_score_max }}
-                  </div>
-                </div>
+                <div class="col-6"><div class="input-group"><span class="input-group-text">Min</span>{{ form.ps_score_min }}</div></div>
+                <div class="col-6"><div class="input-group"><span class="input-group-text">Max</span>{{ form.ps_score_max }}</div></div>
               </div>
             </div>
             <div class="mb-3">
-              <label class="form-label fw-semibold">Scoring Weights (must total 100)</label>
+              <label class="form-label fw-semibold">Scoring Criteria Weights (must total 100)</label>
               <div class="row g-2">
-                <div class="col-4">
-                  <div class="input-group">
-                    <span class="input-group-text small">Content</span>{{ form.wsdc_content_weight }}
-                  </div>
-                </div>
-                <div class="col-4">
-                  <div class="input-group">
-                    <span class="input-group-text small">Style</span>{{ form.wsdc_style_weight }}
-                  </div>
-                </div>
-                <div class="col-4">
-                  <div class="input-group">
-                    <span class="input-group-text small">Strategy</span>{{ form.wsdc_strategy_weight }}
-                  </div>
-                </div>
+                <div class="col-6"><div class="input-group"><span class="input-group-text small">Delivery</span>{{ form.ps_delivery_weight }}</div></div>
+                <div class="col-6"><div class="input-group"><span class="input-group-text small">Content</span>{{ form.ps_content_weight }}</div></div>
+                <div class="col-6 mt-2"><div class="input-group"><span class="input-group-text small">Structure</span>{{ form.ps_structure_weight }}</div></div>
+                <div class="col-6 mt-2"><div class="input-group"><span class="input-group-text small">Language</span>{{ form.ps_language_weight }}</div></div>
               </div>
             </div>
           </div>
@@ -95,17 +81,18 @@
   </div>
 </div>
 {% endblock %}
-
 {% block extra_js %}
 <script>
 (function () {
-  const formatSel = document.getElementById("id_format");
-  const wsdcFields = document.getElementById("wsdc-fields");
-  function toggleWsdc() {
-    wsdcFields.style.display = formatSel.value === "WSDC" ? "block" : "none";
+  var fmt = document.getElementById("id_format");
+  var wsdc = document.getElementById("wsdc-fields");
+  var ps = document.getElementById("ps-fields");
+  function toggle() {
+    wsdc.style.display = fmt.value === "WSDC" ? "block" : "none";
+    ps.style.display = fmt.value === "PS" ? "block" : "none";
   }
-  formatSel.addEventListener("change", toggleWsdc);
-  toggleWsdc(); // run on page load
+  fmt.addEventListener("change", toggle);
+  toggle();
 })();
 </script>
 {% endblock %}

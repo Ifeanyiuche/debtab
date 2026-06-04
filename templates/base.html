@@ -66,7 +66,8 @@
           <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown"><i class="bi bi-people"></i> Participants</a>
           <ul class="dropdown-menu">
             <li><a class="dropdown-item fw-semibold text-primary" href="{% url 'participant_list' slug=tournament.slug %}"><i class="bi bi-people-fill"></i> All Participants</a></li>
-            <li><a class="dropdown-item text-success" href="{% url 'participant_register' slug=tournament.slug %}"><i class="bi bi-person-plus-fill"></i> Register Participant</a></li>
+            <li><a class="dropdown-item text-success" href="{% url 'participant_register' slug=tournament.slug %}"><i class="bi bi-person-plus-fill"></i> Register One</a></li>
+            <li><a class="dropdown-item text-info" href="{% url 'batch_upload' slug=tournament.slug %}"><i class="bi bi-upload"></i> Batch Upload</a></li>
             <li><hr class="dropdown-divider"></li>
             <li><a class="dropdown-item" href="{% url 'team_create' slug=tournament.slug %}"><i class="bi bi-shield-shaded"></i> Add Team</a></li>
             <li><a class="dropdown-item" href="{% url 'institution_list' slug=tournament.slug %}"><i class="bi bi-building"></i> Institutions</a></li>

@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}Preview Upload — {{ tournament.name }}{% endblock %}
+{% block content %}
+<h3 class="fw-bold mb-2"><i class="bi bi-eye text-primary"></i> Preview — Review Before Registering</h3>
+<p class="text-muted mb-3">Edit any details below, then click <strong>Confirm and Register All</strong>.</p>
+
+<form method="post">
+  {% csrf_token %}
+  <input type="hidden" name="action" value="confirm">
+
+  <div class="table-responsive">
+    <table class="table table-bordered table-sm align-middle" id="previewTable">
+      <thead class="table-dark">
+        <tr>
+          <th>#</th>
+          <th>Full Name *</th>
+          <th>Role</th>
+          <th>Institution</th>
+          <th>Email</th>
+          <th>Categories / Score</th>
+          <th>Assign to Team</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td class="text-muted small">{{ forloop.counter }}</td>
+          <td><input type="text" name="name_{{ forloop.counter0 }}" value="{{ row.name }}" class="form-control form-control-sm" required></td>
+          <td>
+            <select name="role_{{ forloop.counter0 }}" class="form-select form-select-sm role-sel" data-idx="{{ forloop.counter0 }}">
+              <option value="speaker" {% if row.role == "speaker" %}selected{% endif %}>Speaker</option>
+              <option value="adjudicator" {% if row.role == "adjudicator" %}selected{% endif %}>Adjudicator</option>
+            </select>
+          </td>
+          <td>
+            <select name="institution_{{ forloop.counter0 }}" class="form-select form-select-sm">
+              <option value="">— None —</option>
+              {% for inst in institutions %}
+              <option value="{{ inst.pk }}" {% if row.institution and row.institution.pk == inst.pk %}selected{% endif %}>{{ inst.name }}</option>
+              {% endfor %}
+            </select>
+            {% if row.institution_raw and not row.institution %}
+            <div class="text-warning small"><i class="bi bi-exclamation-triangle"></i> "{{ row.institution_raw }}" not found</div>
+            {% endif %}
+          </td>
+          <td><input type="email" name="email_{{ forloop.counter0 }}" value="{{ row.email }}" class="form-control form-control-sm" placeholder="Optional"></td>
+          <td>
+            <div class="spk-cats-{{ forloop.counter0 }}">
+              <div class="d-flex gap-2 flex-wrap">
+                <label class="small"><input type="checkbox" name="is_esl_{{ forloop.counter0 }}" {% if row.is_esl %}checked{% endif %}> ESL</label>
+                <label class="small"><input type="checkbox" name="is_efl_{{ forloop.counter0 }}" {% if row.is_efl %}checked{% endif %}> EFL</label>
+                <label class="small"><input type="checkbox" name="is_novice_{{ forloop.counter0 }}" {% if row.is_novice %}checked{% endif %}> Novice</label>
+                <label class="small"><input type="checkbox" name="is_schools_{{ forloop.counter0 }}" {% if row.is_schools %}checked{% endif %}> Schools</label>
+              </div>
+            </div>
+            <div class="adj-score-{{ forloop.counter0 }}" style="display:none;">
+              <input type="number" name="base_score_{{ forloop.counter0 }}" value="{{ row.base_score }}" class="form-control form-control-sm" step="0.5" min="0" max="5" placeholder="Score 0-5">
+            </div>
+          </td>
+          <td>
+            <div class="spk-team-{{ forloop.counter0 }}">
+              <select name="team_{{ forloop.counter0 }}" class="form-select form-select-sm">
+                <option value="">— Unassigned —</option>
+                {% for team in teams %}
+                <option value="{{ team.pk }}">{{ team.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="adj-team-{{ forloop.counter0 }}" style="display:none;"><span class="text-muted small">N/A</span></div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="text-center text-muted py-3">No participants were parsed. Go back and check your input.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="d-flex gap-2 mt-3">
+    <button type="submit" class="btn btn-success btn-lg px-5"><i class="bi bi-check-circle"></i> Confirm and Register All</button>
+    <a href="{% url 'batch_upload' slug=tournament.slug %}" class="btn btn-outline-secondary">Back</a>
+  </div>
+</form>
+{% endblock %}
+{% block extra_js %}
+<script>
+document.querySelectorAll(".role-sel").forEach(function (sel) {
+  function toggle() {
+    var idx = sel.dataset.idx;
+    var isAdj = sel.value === "adjudicator";
+    var spkCat = document.querySelector(".spk-cats-" + idx);
+    var adjScore = document.querySelector(".adj-score-" + idx);
+    var spkTeam = document.querySelector(".spk-team-" + idx);
+    var adjTeam = document.querySelector(".adj-team-" + idx);
+    if (spkCat) spkCat.style.display = isAdj ? "none" : "block";
+    if (adjScore) adjScore.style.display = isAdj ? "block" : "none";
+    if (spkTeam) spkTeam.style.display = isAdj ? "none" : "block";
+    if (adjTeam) adjTeam.style.display = isAdj ? "block" : "none";
+  }
+  sel.addEventListener("change", toggle);
+  toggle();
+});
+</script>
+{% endblock %}
