@@ -62,7 +62,7 @@ WSGI_APPLICATION = 'debtab.wsgi.application'
 # Use DATABASE_URL on Railway/Render, fall back to individual settings locally
 _database_url = config('DATABASE_URL', default=None)
 if _database_url:
-    DATABASES = {'default': dj_database_url.parse(_database_url, conn_max_age=600)}
+    DATABASES = {'default': dj_database_url.parse(_database_url, conn_max_age=600, ssl_require=False)}
 else:
     DATABASES = {
         'default': {
