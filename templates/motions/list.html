@@ -1,0 +1,19 @@
+﻿{% extends "base.html" %}
+{% block title %}Motions — {{ round.name }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h3 class="fw-bold mb-0"><i class="bi bi-chat-quote"></i> Motions — {{ round.name }}</h3>
+  <a href="{% url 'motion_create' slug=tournament.slug round_seq=round.seq %}" class="btn btn-primary btn-sm"><i class="bi bi-plus"></i> Add Motion</a>
+</div>
+{% for motion in motions %}
+<div class="card border-0 shadow-sm mb-3"><div class="card-body">
+  <h5 class="fw-semibold">{{ motion.reference }}</h5>
+  <p class="mb-1">{{ motion.text }}</p>
+  <form method="post" action="{% url 'release_motion' slug=tournament.slug round_seq=round.seq pk=motion.pk %}" class="d-inline">
+    {% csrf_token %}<button class="btn btn-sm {% if motion.released %}btn-outline-warning{% else %}btn-outline-success{% endif %}">{% if motion.released %}<i class="bi bi-eye-slash"></i> Hide{% else %}<i class="bi bi-eye"></i> Release{% endif %}</button>
+  </form>
+</div></div>
+{% empty %}
+<div class="alert alert-info">No motions yet.</div>
+{% endfor %}
+{% endblock %}

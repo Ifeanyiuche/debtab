@@ -1,0 +1,50 @@
+﻿{% extends "base.html" %}
+{% block title %}{{ tournament.name }} — DebTab{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="fw-bold mb-0">{{ tournament.name }}</h2>
+    <span class="text-muted">{{ tournament.get_format_display }}</span>
+  </div>
+  <a href="{% url 'tournament_edit' slug=tournament.slug %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-gear"></i> Settings</a>
+</div>
+
+<!-- Stats row -->
+<div class="row g-3 mb-4">
+  <div class="col-sm-3"><div class="card border-0 shadow-sm text-center py-3"><div class="fs-2 fw-bold text-primary">{{ teams_count }}</div><div class="text-muted small">Teams</div></div></div>
+  <div class="col-sm-3"><div class="card border-0 shadow-sm text-center py-3"><div class="fs-2 fw-bold text-success">{{ speakers_count }}</div><div class="text-muted small">Speakers</div></div></div>
+  <div class="col-sm-3"><div class="card border-0 shadow-sm text-center py-3"><div class="fs-2 fw-bold text-warning">{{ adj_count }}</div><div class="text-muted small">Adjudicators</div></div></div>
+  <div class="col-sm-3"><div class="card border-0 shadow-sm text-center py-3"><div class="fs-2 fw-bold text-info">{{ rounds|length }}</div><div class="text-muted small">Rounds</div></div></div>
+</div>
+
+<!-- Rounds -->
+<div class="d-flex justify-content-between align-items-center mb-2">
+  <h4 class="fw-semibold mb-0"><i class="bi bi-stack"></i> Rounds</h4>
+  <a href="{% url 'round_create' slug=tournament.slug %}" class="btn btn-sm btn-outline-primary"><i class="bi bi-plus"></i> Add Round</a>
+</div>
+<div class="card border-0 shadow-sm mb-4">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead class="table-dark"><tr><th>Round</th><th>Type</th><th>Status</th><th>Draw</th><th>Results</th><th>Actions</th></tr></thead>
+      <tbody>
+        {% for r in rounds %}
+        <tr>
+          <td class="fw-semibold">{{ r.name }}{% if r.is_break_round %} <span class="badge bg-warning text-dark">Break</span>{% endif %}</td>
+          <td><span class="badge bg-secondary">{{ r.get_draw_type_display }}</span></td>
+          <td><span class="badge bg-{% if r.status == 'completed' %}success{% elif r.status == 'released' %}info{% elif r.status == 'confirmed' %}warning{% else %}light text-dark{% endif %}">{{ r.get_status_display }}</span></td>
+          <td>{% if r.draw_released %}<span class="text-success"><i class="bi bi-check-circle"></i> Released</span>{% else %}<span class="text-muted">Hidden</span>{% endif %}</td>
+          <td>{% if r.results_released %}<span class="text-success"><i class="bi bi-check-circle"></i> Released</span>{% else %}<span class="text-muted">Hidden</span>{% endif %}</td>
+          <td>
+            <a href="{% url 'draw_view' slug=tournament.slug round_seq=r.seq %}" class="btn btn-xs btn-outline-primary btn-sm me-1"><i class="bi bi-diagram-2"></i> Draw</a>
+            <a href="{% url 'results_overview' slug=tournament.slug round_seq=r.seq %}" class="btn btn-xs btn-outline-success btn-sm me-1"><i class="bi bi-card-checklist"></i> Results</a>
+            <a href="{% url 'round_edit' slug=tournament.slug round_seq=r.seq %}" class="btn btn-xs btn-outline-secondary btn-sm"><i class="bi bi-pencil"></i></a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="text-center text-muted py-3">No rounds yet. <a href="{% url 'round_create' slug=tournament.slug %}">Add the first round.</a></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

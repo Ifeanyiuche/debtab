@@ -1,0 +1,31 @@
+﻿{% extends "base.html" %}
+{% load crispy_forms_tags %}
+{% block title %}Check In — {{ tournament.name }}{% endblock %}
+{% block content %}
+<h3 class="fw-bold mb-4"><i class="bi bi-check2-square text-success"></i> Check In</h3>
+<form method="post">
+  {% csrf_token %}
+  <div class="row g-4">
+    <div class="col-md-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header bg-primary text-white fw-semibold">Teams Present</div>
+        <div class="card-body" style="max-height:400px;overflow-y:auto;">
+          {% for choice in form.teams %}{{ choice }}<br>{% endfor %}
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header bg-success text-white fw-semibold">Adjudicators Present</div>
+        <div class="card-body" style="max-height:400px;overflow-y:auto;">
+          {% for choice in form.adjudicators %}{{ choice }}<br>{% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="mt-3">
+    <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Save Check-In</button>
+    <a href="{% url 'tournament_overview' slug=tournament.slug %}" class="btn btn-outline-secondary ms-2">Cancel</a>
+  </div>
+</form>
+{% endblock %}

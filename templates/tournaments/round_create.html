@@ -1,0 +1,15 @@
+﻿{% extends "base.html" %}
+{% load crispy_forms_tags %}
+{% block title %}Add Round — {{ tournament.name }}{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-6">
+    <h2 class="fw-bold mb-4"><i class="bi bi-plus-circle text-primary"></i> Add Round</h2>
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-4">
+        <form method="post">{% csrf_token %}{{ form|crispy }}<button type="submit" class="btn btn-primary mt-2">Add Round</button> <a href="{% url 'tournament_overview' slug=tournament.slug %}" class="btn btn-outline-secondary mt-2">Cancel</a></form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

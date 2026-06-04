@@ -1,0 +1,23 @@
+﻿{% extends "base.html" %}
+{% block title %}Venues — {{ tournament.name }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h3 class="fw-bold mb-0"><i class="bi bi-door-open"></i> Venues</h3>
+  <a href="{% url 'venue_create' slug=tournament.slug %}" class="btn btn-primary btn-sm"><i class="bi bi-plus"></i> Add Venue</a>
+</div>
+<div class="card border-0 shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead class="table-dark"><tr><th>Venue</th><th>Priority</th><th>Actions</th></tr></thead>
+      <tbody>
+        {% for v in venues %}
+        <tr><td class="fw-semibold">{{ v.name }}</td><td>{{ v.priority }}</td>
+          <td><form method="post" action="{% url 'venue_delete' slug=tournament.slug pk=v.pk %}" class="d-inline">{% csrf_token %}<button class="btn btn-outline-danger btn-sm" onclick="return confirm('Delete?')"><i class="bi bi-trash"></i></button></form></td>
+        </tr>
+        {% empty %}<tr><td colspan="3" class="text-center text-muted py-3">No venues yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

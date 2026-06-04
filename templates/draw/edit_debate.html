@@ -1,0 +1,59 @@
+﻿{% extends "base.html" %}
+{% block title %}Edit Room — {{ round.name }}{% endblock %}
+{% block content %}
+<h3 class="fw-bold mb-4"><i class="bi bi-pencil text-warning"></i> Edit Room</h3>
+<form method="post">
+  {% csrf_token %}
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-header bg-dark text-white fw-semibold">Team Positions</div>
+    <div class="card-body">
+      <div class="row g-3">
+        {% for pos in positions %}
+        <div class="col-md-3">
+          <label class="form-label fw-semibold">{{ pos }}</label>
+          {% for dt in debate_teams %}{% if dt.position == pos %}<input type="hidden" name="team_{{ pos }}" value="{{ dt.team.pk }}">{% endif %}{% endfor %}
+          <select name="team_{{ pos }}" class="form-select">
+            <option value="">— Empty —</option>
+            {% for team in all_teams %}
+            <option value="{{ team.pk }}" {% for dt in debate_teams %}{% if dt.position == pos and dt.team.pk == team.pk %}selected{% endif %}{% endfor %}>{{ team.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-header bg-dark text-white fw-semibold">Adjudicators</div>
+    <div class="card-body row g-3">
+      <div class="col-md-4">
+        <label class="form-label fw-semibold">Chair</label>
+        <select name="chair" class="form-select">
+          <option value="">— None —</option>
+          {% for adj in all_adjs %}
+          <option value="{{ adj.pk }}" {% for da in debate_adjs %}{% if da.role == 'C' and da.adjudicator.pk == adj.pk %}selected{% endif %}{% endfor %}>{{ adj.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label fw-semibold">Panellists</label>
+        <select name="panellists" class="form-select" multiple>
+          {% for adj in all_adjs %}
+          <option value="{{ adj.pk }}" {% for da in debate_adjs %}{% if da.role == 'P' and da.adjudicator.pk == adj.pk %}selected{% endif %}{% endfor %}>{{ adj.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label fw-semibold">Trainees</label>
+        <select name="trainees" class="form-select" multiple>
+          {% for adj in all_adjs %}
+          <option value="{{ adj.pk }}" {% for da in debate_adjs %}{% if da.role == 'T' and da.adjudicator.pk == adj.pk %}selected{% endif %}{% endfor %}>{{ adj.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+  </div>
+  <button type="submit" class="btn btn-primary">Save Room</button>
+  <a href="{% url 'draw_view' slug=tournament.slug round_seq=round.seq %}" class="btn btn-outline-secondary ms-2">Cancel</a>
+</form>
+{% endblock %}

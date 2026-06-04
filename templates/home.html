@@ -1,0 +1,41 @@
+﻿{% extends "base.html" %}
+{% block title %}DebTab — Debate Tabulation System{% endblock %}
+{% block content %}
+<div class="row justify-content-center mt-5">
+  <div class="col-lg-7 text-center">
+    <h1 class="display-5 fw-bold mb-2"><i class="bi bi-clipboard2-data text-primary"></i> DebTab</h1>
+    <p class="lead text-muted mb-4">Professional debate tabulation for British Parliamentary, World Schools, and Public Speaking tournaments.</p>
+    <div class="d-flex justify-content-center gap-3">
+      <a href="{% url 'register' %}" class="btn btn-primary btn-lg px-5"><i class="bi bi-person-plus"></i> Register</a>
+      <a href="{% url 'login' %}" class="btn btn-outline-secondary btn-lg px-5"><i class="bi bi-box-arrow-in-right"></i> Log In</a>
+    </div>
+    <hr class="my-5">
+    <div class="row g-4 text-start">
+      <div class="col-md-4">
+        <div class="card h-100 border-0 shadow-sm">
+          <div class="card-body">
+            <h5 class="card-title"><i class="bi bi-lightning-charge text-warning"></i> Fast Draw Generation</h5>
+            <p class="card-text small text-muted">Automatic power-paired draws with BP position rotation. Editable at any time.</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card h-100 border-0 shadow-sm">
+          <div class="card-body">
+            <h5 class="card-title"><i class="bi bi-trophy text-success"></i> Live Tab</h5>
+            <p class="card-text small text-muted">Real-time team and speaker standings updated as ballots are entered.</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card h-100 border-0 shadow-sm">
+          <div class="card-body">
+            <h5 class="card-title"><i class="bi bi-globe text-info"></i> Public View</h5>
+            <p class="card-text small text-muted">Separate public-facing page for participants to view draws and results.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

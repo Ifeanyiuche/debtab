@@ -1,0 +1,83 @@
+﻿{% extends "base.html" %}
+{% block title %}Draw — {{ round.name }} — {{ tournament.name }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h3 class="fw-bold mb-0"><i class="bi bi-diagram-2"></i> {{ round.name }} &mdash; Draw</h3>
+  <div class="btn-group">
+    {% if round.status == "draft" or round.status == "confirmed" %}
+    <form method="post" action="{% url 'generate_draw' slug=tournament.slug round_seq=round.seq %}" class="d-inline">
+      {% csrf_token %}<button class="btn btn-warning btn-sm" onclick="return confirm('Regenerate the draw? This will delete the current draft.')"><i class="bi bi-arrow-repeat"></i> Generate Draw</button>
+    </form>
+    <form method="post" action="{% url 'auto_allocate' slug=tournament.slug round_seq=round.seq %}" class="d-inline ms-1">
+      {% csrf_token %}<button class="btn btn-outline-secondary btn-sm"><i class="bi bi-person-check"></i> Auto-Allocate Judges</button>
+    </form>
+    {% endif %}
+    {% if round.status == "draft" %}
+    <form method="post" action="{% url 'confirm_draw' slug=tournament.slug round_seq=round.seq %}" class="d-inline ms-1">
+      {% csrf_token %}<button class="btn btn-success btn-sm"><i class="bi bi-check2-circle"></i> Confirm Draw</button>
+    </form>
+    {% endif %}
+    {% if round.status == "confirmed" and not round.draw_released %}
+    <form method="post" action="{% url 'release_draw' slug=tournament.slug round_seq=round.seq %}" class="d-inline ms-1">
+      {% csrf_token %}<button class="btn btn-primary btn-sm"><i class="bi bi-eye"></i> Release Draw</button>
+    </form>
+    {% endif %}
+    {% if round.draw_released %}
+    <form method="post" action="{% url 'unrelease_draw' slug=tournament.slug round_seq=round.seq %}" class="d-inline ms-1">
+      {% csrf_token %}<button class="btn btn-outline-warning btn-sm"><i class="bi bi-eye-slash"></i> Hide Draw</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+{% if round.draw_released %}
+<div class="alert alert-success py-2"><i class="bi bi-eye"></i> Draw is <strong>public</strong>. <a href="{% url 'public_draw' slug=tournament.slug round_seq=round.seq %}" target="_blank">View public draw</a></div>
+{% endif %}
+
+{% if debates %}
+<div class="row g-3">
+  {% for debate in debates %}
+  <div class="col-12">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header d-flex justify-content-between align-items-center bg-dark text-white py-2">
+        <span class="fw-semibold"><i class="bi bi-door-open"></i> {% if debate.venue %}{{ debate.venue.name }}{% else %}Room {{ debate.room_rank }}{% endif %}</span>
+        <div>
+          <span class="badge bg-secondary me-2">Bracket {{ debate.bracket|floatformat:0 }}</span>
+          {% if debate.result_status == "confirmed" %}<span class="badge bg-success">Results In</span>
+          {% elif debate.result_status == "ballot_in" %}<span class="badge bg-warning text-dark">Ballot In</span>
+          {% else %}<span class="badge bg-light text-dark">No Ballot</span>{% endif %}
+          <a href="{% url 'edit_debate' slug=tournament.slug round_seq=round.seq debate_id=debate.pk %}" class="btn btn-outline-light btn-sm ms-2"><i class="bi bi-pencil"></i> Edit Room</a>
+          <a href="{% url 'ballot_entry' slug=tournament.slug round_seq=round.seq debate_id=debate.pk %}" class="btn btn-success btn-sm ms-1"><i class="bi bi-card-checklist"></i> Ballot</a>
+        </div>
+      </div>
+      <div class="card-body py-2">
+        <div class="row g-2">
+          {% for dt in debate.debate_teams.all %}
+          <div class="col-md-3">
+            <div class="p-2 rounded border border-{{ dt.position|lower|slice:":2" }}-subtle bg-light">
+              <div class="fw-bold small text-{% if dt.position == 'OG' %}primary{% elif dt.position == 'OO' %}danger{% elif dt.position == 'CG' %}success{% else %}warning{% endif %}">{{ dt.position_label }}</div>
+              <div class="fw-semibold">{{ dt.team.name }}</div>
+              <div class="text-muted small">{{ dt.team.institution.code|default:dt.team.institution.name|default:"—" }}</div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% with chair=debate.debate_adjudicators.all %}
+        {% if chair %}
+        <div class="mt-2 text-muted small">
+          <i class="bi bi-person-badge"></i>
+          {% for da in debate.debate_adjudicators.all %}
+            <span class="badge bg-{% if da.role == 'C' %}dark{% elif da.role == 'P' %}secondary{% else %}light text-dark{% endif %} me-1">{{ da.adjudicator.name }}{% if da.role == 'C' %} (Chair){% endif %}</span>
+          {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="alert alert-info mt-3"><i class="bi bi-info-circle"></i> No draw yet. Click <strong>Generate Draw</strong> above, or ensure teams are checked in.</div>
+{% endif %}
+{% endblock %}

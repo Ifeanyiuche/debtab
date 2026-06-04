@@ -1,0 +1,15 @@
+﻿{% extends "base.html" %}
+{% block title %}Add Venue{% endblock %}
+{% block content %}
+<div class="row justify-content-center"><div class="col-lg-5">
+  <h3 class="fw-bold mb-4">Add Venue</h3>
+  <div class="card border-0 shadow-sm"><div class="card-body p-4">
+    <form method="post">{% csrf_token %}
+      <div class="mb-3"><label class="form-label">Name</label><input type="text" name="name" class="form-control" required></div>
+      <div class="mb-3"><label class="form-label">Priority</label><input type="number" name="priority" class="form-control" value="10"></div>
+      <button type="submit" class="btn btn-primary">Add</button>
+      <a href="{% url 'venue_list' slug=tournament.slug %}" class="btn btn-outline-secondary ms-2">Cancel</a>
+    </form>
+  </div></div>
+</div></div>
+{% endblock %}
