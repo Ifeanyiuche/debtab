@@ -3,7 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from apps.tournaments.models import Tournament
 from .models import Institution, Speaker, Team, Adjudicator
-from .forms import InstitutionForm, SpeakerForm, TeamForm, AdjudicatorForm, CheckInForm
+from .forms import InstitutionForm, SpeakerForm, TeamForm, AdjudicatorForm, CheckInForm, ParticipantForm
 
 
 def get_tournament(slug, user):
@@ -114,10 +114,15 @@ def team_create(request, slug):
         team = form.save(commit=False)
         team.tournament = t
         team.save()
-        form.save_m2m()
+        form.save()  # handles speaker M2M via overridden save()
         messages.success(request, f"Team '{team.name}' added.")
         return redirect("team_list", slug=t.slug)
-    return render(request, "participants/team_form.html", {"tournament": t, "form": form, "action": "Add"})
+    speakers = Speaker.objects.filter(tournament=t).order_by("name")
+    institutions = t.institutions.all()
+    return render(request, "participants/team_form.html", {
+        "tournament": t, "form": form, "action": "Add",
+        "speakers": speakers, "institutions": institutions,
+    })
 
 
 @login_required
@@ -129,7 +134,13 @@ def team_edit(request, slug, pk):
         form.save()
         messages.success(request, "Team updated.")
         return redirect("team_list", slug=t.slug)
-    return render(request, "participants/team_form.html", {"tournament": t, "form": form, "action": "Edit"})
+    speakers = Speaker.objects.filter(tournament=t).order_by("name")
+    institutions = t.institutions.all()
+    return render(request, "participants/team_form.html", {
+        "tournament": t, "form": form, "action": "Edit",
+        "speakers": speakers, "institutions": institutions,
+        "team": team,
+    })
 
 
 @login_required
@@ -205,3 +216,61 @@ def check_in(request, slug):
         initial_adjs = t.adjudicators.filter(checked_in=True)
         form = CheckInForm(t, initial={"teams": initial_teams, "adjudicators": initial_adjs})
     return render(request, "participants/check_in.html", {"tournament": t, "form": form})
+
+
+# ---------- General Participant Registration ----------
+@login_required
+def participant_register(request, slug):
+    """
+    Unified registration form. Registers a person as either a Speaker or Adjudicator
+    depending on their selected role. This is the recommended way to add people.
+    """
+    t = get_tournament(slug, request.user)
+    form = ParticipantForm(t, request.POST or None)
+    if form.is_valid():
+        d = form.cleaned_data
+        role = d["role"]
+        if role == ParticipantForm.ROLE_SPEAKER:
+            obj = Speaker.objects.create(
+                tournament=t,
+                name=d["name"],
+                institution=d.get("institution"),
+                email=d.get("email", ""),
+                is_esl=d.get("is_esl", False),
+                is_efl=d.get("is_efl", False),
+                is_novice=d.get("is_novice", False),
+                is_schools=d.get("is_schools", False),
+            )
+            messages.success(request, f"Speaker '{obj.name}' registered successfully.")
+        else:
+            obj = Adjudicator.objects.create(
+                tournament=t,
+                name=d["name"],
+                institution=d.get("institution"),
+                email=d.get("email", ""),
+                base_score=d.get("base_score") or 1.5,
+                independent=d.get("independent", False),
+            )
+            messages.success(request, f"Adjudicator '{obj.name}' registered successfully.")
+
+        # Stay on the form to register more participants
+        if "add_another" in request.POST:
+            return redirect("participant_register", slug=t.slug)
+        return redirect("participant_list", slug=t.slug)
+
+    return render(request, "participants/register.html", {"tournament": t, "form": form})
+
+
+@login_required
+def participant_list(request, slug):
+    """All participants (speakers + adjudicators) in one view."""
+    t = get_tournament(slug, request.user)
+    speakers = t.speakers.select_related("institution").order_by("name")
+    adjudicators = t.adjudicators.select_related("institution").order_by("name")
+    teams = t.teams.prefetch_related("speakers").select_related("institution").order_by("name")
+    return render(request, "participants/participant_list.html", {
+        "tournament": t,
+        "speakers": speakers,
+        "adjudicators": adjudicators,
+        "teams": teams,
+    })

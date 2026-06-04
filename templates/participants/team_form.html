@@ -1,5 +1,4 @@
 ﻿{% extends "base.html" %}
-{% load crispy_forms_tags %}
 {% block title %}{{ action }} Team — {{ tournament.name }}{% endblock %}
 {% block content %}
 <div class="row justify-content-center">
@@ -7,9 +6,97 @@
     <h3 class="fw-bold mb-4"><i class="bi bi-shield-shaded text-primary"></i> {{ action }} Team</h3>
     <div class="card border-0 shadow-sm">
       <div class="card-body p-4">
-        <form method="post">{% csrf_token %}{{ form|crispy }}<button type="submit" class="btn btn-primary mt-2">{{ action }} Team</button> <a href="{% url 'team_list' slug=tournament.slug %}" class="btn btn-outline-secondary mt-2">Cancel</a></form>
+        <form method="post" id="teamForm">
+          {% csrf_token %}
+
+          <!-- Team name — prominent at the top -->
+          <div class="mb-4">
+            <label class="form-label fw-semibold fs-5">Team Name *</label>
+            {{ form.name }}
+            {% if form.name.errors %}<div class="text-danger small mt-1">{{ form.name.errors }}</div>{% endif %}
+            <div class="form-text">Give the team any name you like — e.g. "The Jokers", "UCL A", "Team Phoenix"</div>
+          </div>
+
+          <!-- Speaker pairing -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold">First Speaker *</label>
+            {{ form.speaker_1 }}
+            {% if form.speaker_1.errors %}<div class="text-danger small mt-1">{{ form.speaker_1.errors }}</div>{% endif %}
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Second Speaker</label>
+            {{ form.speaker_2 }}
+            {% if form.speaker_2.errors %}<div class="text-danger small mt-1">{{ form.speaker_2.errors }}</div>{% endif %}
+            <div class="form-text">Optional — you can add or change the second speaker later.</div>
+          </div>
+
+          <!-- Institution — auto-fills from speakers, editable -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Institution</label>
+            <select name="institution" id="id_institution" class="form-select">
+              <option value="">— None / Mixed —</option>
+              {% for inst in institutions %}
+              <option value="{{ inst.pk }}"
+                {% if form.instance.institution_id == inst.pk %}selected{% endif %}>
+                {{ inst.name }}
+              </option>
+              {% endfor %}
+            </select>
+            <div class="form-text">Auto-filled from the first speaker's institution. You can override it.</div>
+          </div>
+
+          <!-- Optional fields -->
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Break Category</label>
+              {{ form.break_category }}
+              <div class="form-text">e.g. Open, ESL, Schools (optional)</div>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-semibold">Emoji</label>
+              {{ form.emoji }}
+            </div>
+            <div class="col-md-3 d-flex align-items-end pb-1">
+              <div class="form-check">
+                {{ form.is_swing }}
+                <label class="form-check-label" for="{{ form.is_swing.id_for_label }}">Swing team</label>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-flex gap-2 mt-4">
+            <button type="submit" class="btn btn-primary">{{ action }} Team</button>
+            <a href="{% url 'participant_list' slug=tournament.slug %}" class="btn btn-outline-secondary">Cancel</a>
+          </div>
+        </form>
       </div>
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  // Build a map of speaker_id -> institution_id from the speaker list
+  const speakerInstitutions = {
+    {% for s in speakers %}
+    "{{ s.pk }}": "{{ s.institution_id|default:'' }}",
+    {% endfor %}
+  };
+
+  const spk1 = document.getElementById("id_speaker_1");
+  const instSel = document.getElementById("id_institution");
+
+  if (spk1) {
+    spk1.addEventListener("change", function () {
+      const instId = speakerInstitutions[this.value];
+      if (instId) {
+        instSel.value = instId;
+      }
+    });
+  }
+})();
+</script>
 {% endblock %}

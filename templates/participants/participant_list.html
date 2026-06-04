@@ -1,0 +1,114 @@
+﻿{% extends "base.html" %}
+{% block title %}Participants — {{ tournament.name }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h3 class="fw-bold mb-0"><i class="bi bi-people"></i> Participants</h3>
+  <a href="{% url 'participant_register' slug=tournament.slug %}" class="btn btn-primary">
+    <i class="bi bi-person-plus"></i> Register Participant
+  </a>
+</div>
+
+<ul class="nav nav-tabs mb-4" id="participantTabs">
+  <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#teams-tab">Teams <span class="badge bg-primary">{{ teams|length }}</span></a></li>
+  <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#speakers-tab">Speakers <span class="badge bg-success">{{ speakers|length }}</span></a></li>
+  <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#adjudicators-tab">Adjudicators <span class="badge bg-warning text-dark">{{ adjudicators|length }}</span></a></li>
+</ul>
+
+<div class="tab-content">
+  <!-- Teams tab -->
+  <div class="tab-pane fade show active" id="teams-tab">
+    <div class="d-flex justify-content-end mb-2">
+      <a href="{% url 'team_create' slug=tournament.slug %}" class="btn btn-outline-primary btn-sm"><i class="bi bi-plus"></i> Add Team</a>
+    </div>
+    <div class="card border-0 shadow-sm">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead class="table-dark"><tr><th>Team Name</th><th>Speakers</th><th>Institution</th><th>Category</th><th>Swing?</th><th>Actions</th></tr></thead>
+          <tbody>
+            {% for team in teams %}
+            <tr {% if team.is_swing %}class="table-warning"{% endif %}>
+              <td class="fw-semibold">{{ team.emoji }} {{ team.name }}</td>
+              <td class="small">{{ team.speaker_list }}</td>
+              <td class="text-muted small">{{ team.institution.name|default:"—" }}</td>
+              <td>{{ team.break_category|default:"—" }}</td>
+              <td>{% if team.is_swing %}<span class="badge bg-warning text-dark">Swing</span>{% endif %}</td>
+              <td>
+                <a href="{% url 'team_edit' slug=tournament.slug pk=team.pk %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-pencil"></i></a>
+                <a href="{% url 'team_delete' slug=tournament.slug pk=team.pk %}" class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i></a>
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" class="text-center text-muted py-3">No teams yet. <a href="{% url 'team_create' slug=tournament.slug %}">Add one.</a></td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Speakers tab -->
+  <div class="tab-pane fade" id="speakers-tab">
+    <div class="d-flex justify-content-end mb-2">
+      <a href="{% url 'participant_register' slug=tournament.slug %}" class="btn btn-outline-success btn-sm"><i class="bi bi-plus"></i> Register Speaker</a>
+    </div>
+    <div class="card border-0 shadow-sm">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead class="table-dark"><tr><th>Name</th><th>Institution</th><th>Team</th><th>Categories</th><th>Actions</th></tr></thead>
+          <tbody>
+            {% for s in speakers %}
+            <tr>
+              <td class="fw-semibold">{{ s.name }}</td>
+              <td class="text-muted small">{{ s.institution.name|default:"—" }}</td>
+              <td class="small">{% for team in s.teams.all %}{{ team.name }}{% endfor %}</td>
+              <td>
+                {% if s.is_esl %}<span class="badge bg-info">ESL</span>{% endif %}
+                {% if s.is_efl %}<span class="badge bg-warning text-dark">EFL</span>{% endif %}
+                {% if s.is_novice %}<span class="badge bg-secondary">Novice</span>{% endif %}
+                {% if s.is_schools %}<span class="badge bg-success">Schools</span>{% endif %}
+              </td>
+              <td>
+                <a href="{% url 'speaker_edit' slug=tournament.slug pk=s.pk %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-pencil"></i></a>
+                <a href="{% url 'speaker_delete' slug=tournament.slug pk=s.pk %}" class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i></a>
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="text-center text-muted py-3">No speakers registered yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Adjudicators tab -->
+  <div class="tab-pane fade" id="adjudicators-tab">
+    <div class="d-flex justify-content-end mb-2">
+      <a href="{% url 'participant_register' slug=tournament.slug %}" class="btn btn-outline-warning btn-sm"><i class="bi bi-plus"></i> Register Adjudicator</a>
+    </div>
+    <div class="card border-0 shadow-sm">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead class="table-dark"><tr><th>Name</th><th>Institution</th><th>Score</th><th>Independent</th><th>Actions</th></tr></thead>
+          <tbody>
+            {% for adj in adjudicators %}
+            <tr>
+              <td class="fw-semibold">{{ adj.name }}</td>
+              <td class="text-muted small">{{ adj.institution.name|default:"—" }}</td>
+              <td>{{ adj.base_score }}</td>
+              <td>{% if adj.independent %}<i class="bi bi-check text-success"></i>{% endif %}</td>
+              <td>
+                <a href="{% url 'adjudicator_edit' slug=tournament.slug pk=adj.pk %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-pencil"></i></a>
+                <a href="{% url 'adjudicator_delete' slug=tournament.slug pk=adj.pk %}" class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i></a>
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="text-center text-muted py-3">No adjudicators registered yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

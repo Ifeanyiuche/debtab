@@ -23,4 +23,8 @@ urlpatterns = [
     path("participants/adjudicators/<int:pk>/delete/", views.adjudicator_delete, name="adjudicator_delete"),
 
     path("participants/check-in/", views.check_in, name="check_in"),
+
+    # Unified participant registration
+    path("participants/", views.participant_list, name="participant_list"),
+    path("participants/register/", views.participant_register, name="participant_register"),
 ]

@@ -1,0 +1,104 @@
+﻿{% extends "base.html" %}
+{% block title %}Register Participant — {{ tournament.name }}{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-6">
+    <h3 class="fw-bold mb-4"><i class="bi bi-person-plus text-primary"></i> Register Participant</h3>
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-4">
+        <form method="post" id="participantForm">
+          {% csrf_token %}
+
+          <!-- Role selector -->
+          <div class="mb-4">
+            <label class="form-label fw-semibold">Registering as *</label>
+            <select name="role" id="id_role" class="form-select form-select-lg">
+              <option value="speaker">Speaker / Debater</option>
+              <option value="adjudicator">Adjudicator / Judge</option>
+            </select>
+          </div>
+
+          <hr>
+
+          <!-- Common fields -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Full Name *</label>
+            <input type="text" name="name" class="form-control" placeholder="e.g. Godswill Ifeanyichukwu" required
+              value="{{ form.name.value|default_if_none:'' }}">
+            {% if form.name.errors %}<div class="text-danger small">{{ form.name.errors }}</div>{% endif %}
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Institution / School</label>
+            <select name="institution" class="form-select">
+              <option value="">— None / Independent —</option>
+              {% for inst in form.fields.institution.queryset %}
+              <option value="{{ inst.pk }}" {% if form.institution.value == inst.pk|stringformat:"s" %}selected{% endif %}>{{ inst.name }}</option>
+              {% endfor %}
+            </select>
+            <div class="form-text">
+              Institution not listed? <a href="{% url 'institution_create' slug=tournament.slug %}" target="_blank">Add it first</a>, then come back.
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Email Address</label>
+            <input type="email" name="email" class="form-control" placeholder="Optional"
+              value="{{ form.email.value|default_if_none:'' }}">
+          </div>
+
+          <!-- Speaker-only fields -->
+          <div id="speaker-fields">
+            <hr>
+            <p class="text-muted small fw-semibold mb-2">ELIGIBILITY CATEGORIES (optional)</p>
+            <div class="row g-2">
+              <div class="col-6"><div class="form-check"><input class="form-check-input" type="checkbox" name="is_esl" id="id_is_esl"><label class="form-check-label" for="id_is_esl">ESL (English as Second Language)</label></div></div>
+              <div class="col-6"><div class="form-check"><input class="form-check-input" type="checkbox" name="is_efl" id="id_is_efl"><label class="form-check-label" for="id_is_efl">EFL (English as Foreign Language)</label></div></div>
+              <div class="col-6"><div class="form-check"><input class="form-check-input" type="checkbox" name="is_novice" id="id_is_novice"><label class="form-check-label" for="id_is_novice">Novice</label></div></div>
+              <div class="col-6"><div class="form-check"><input class="form-check-input" type="checkbox" name="is_schools" id="id_is_schools"><label class="form-check-label" for="id_is_schools">Schools category</label></div></div>
+            </div>
+          </div>
+
+          <!-- Adjudicator-only fields -->
+          <div id="adjudicator-fields" style="display:none;">
+            <hr>
+            <p class="text-muted small fw-semibold mb-2">JUDGE DETAILS</p>
+            <div class="mb-3">
+              <label class="form-label">Judge Score</label>
+              <input type="number" name="base_score" class="form-control" step="0.5" min="0" max="5" value="1.5">
+              <div class="form-text">0 = trainee &nbsp;|&nbsp; 1 = panellist &nbsp;|&nbsp; 2 = chair &nbsp;|&nbsp; 3 = senior chair</div>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="independent" id="id_independent">
+              <label class="form-check-label" for="id_independent">Independent adjudicator (no institutional affiliation)</label>
+            </div>
+          </div>
+
+          <div class="d-flex gap-2 mt-4">
+            <button type="submit" name="save" class="btn btn-primary"><i class="bi bi-check-circle"></i> Register</button>
+            <button type="submit" name="add_another" class="btn btn-outline-primary"><i class="bi bi-plus-circle"></i> Register &amp; Add Another</button>
+            <a href="{% url 'participant_list' slug=tournament.slug %}" class="btn btn-outline-secondary">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  const roleSelect = document.getElementById("id_role");
+  const speakerFields = document.getElementById("speaker-fields");
+  const adjFields = document.getElementById("adjudicator-fields");
+  function toggleRole() {
+    const isSpeaker = roleSelect.value === "speaker";
+    speakerFields.style.display = isSpeaker ? "block" : "none";
+    adjFields.style.display = isSpeaker ? "none" : "block";
+  }
+  roleSelect.addEventListener("change", toggleRole);
+  toggleRole();
+})();
+</script>
+{% endblock %}

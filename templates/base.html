@@ -65,9 +65,10 @@
         <li class="nav-item dropdown">
           <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown"><i class="bi bi-people"></i> Participants</a>
           <ul class="dropdown-menu">
-            <li><a class="dropdown-item" href="{% url 'team_list' slug=tournament.slug %}"><i class="bi bi-shield-shaded"></i> Teams</a></li>
-            <li><a class="dropdown-item" href="{% url 'speaker_list' slug=tournament.slug %}"><i class="bi bi-mic"></i> Speakers</a></li>
-            <li><a class="dropdown-item" href="{% url 'adjudicator_list' slug=tournament.slug %}"><i class="bi bi-person-badge"></i> Adjudicators</a></li>
+            <li><a class="dropdown-item fw-semibold text-primary" href="{% url 'participant_list' slug=tournament.slug %}"><i class="bi bi-people-fill"></i> All Participants</a></li>
+            <li><a class="dropdown-item text-success" href="{% url 'participant_register' slug=tournament.slug %}"><i class="bi bi-person-plus-fill"></i> Register Participant</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="{% url 'team_create' slug=tournament.slug %}"><i class="bi bi-shield-shaded"></i> Add Team</a></li>
             <li><a class="dropdown-item" href="{% url 'institution_list' slug=tournament.slug %}"><i class="bi bi-building"></i> Institutions</a></li>
             <li><hr class="dropdown-divider"></li>
             <li><a class="dropdown-item" href="{% url 'check_in' slug=tournament.slug %}"><i class="bi bi-check2-square"></i> Check In</a></li>

@@ -1,5 +1,4 @@
 ﻿{% extends "base.html" %}
-{% load crispy_forms_tags %}
 {% block title %}Edit {{ tournament.name }} — DebTab{% endblock %}
 {% block content %}
 <div class="row justify-content-center">
@@ -7,9 +6,60 @@
     <h2 class="fw-bold mb-4"><i class="bi bi-gear text-secondary"></i> Tournament Settings</h2>
     <div class="card border-0 shadow-sm">
       <div class="card-body p-4">
-        <form method="post">{% csrf_token %}{{ form|crispy }}<button type="submit" class="btn btn-primary mt-2">Save Changes</button></form>
+        <form method="post" id="tournamentForm">
+          {% csrf_token %}
+          <div class="mb-3"><label class="form-label fw-semibold">Tournament Name *</label>{{ form.name }}</div>
+          <div class="mb-3"><label class="form-label fw-semibold">Short Name</label>{{ form.short_name }}</div>
+          <div class="mb-3"><label class="form-label fw-semibold">Format *</label>{{ form.format }}</div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Number of Preliminary Rounds</label>
+            {{ form.num_prelim_rounds }}<div class="form-text">{{ form.num_prelim_rounds.help_text }}</div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Speaker Score Range</label>
+            <div class="row g-2">
+              <div class="col-6"><div class="input-group"><span class="input-group-text">Min</span>{{ form.speaker_score_min }}</div></div>
+              <div class="col-6"><div class="input-group"><span class="input-group-text">Max</span>{{ form.speaker_score_max }}</div></div>
+            </div>
+          </div>
+          <div id="wsdc-fields" style="display:none;">
+            <hr>
+            <div class="alert alert-info py-2 mb-3"><i class="bi bi-info-circle"></i> <strong>WSDC Settings</strong></div>
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Reply Speech Score Range</label>
+              <div class="row g-2">
+                <div class="col-6"><div class="input-group"><span class="input-group-text">Min</span>{{ form.reply_score_min }}</div></div>
+                <div class="col-6"><div class="input-group"><span class="input-group-text">Max</span>{{ form.reply_score_max }}</div></div>
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Scoring Weights (must total 100)</label>
+              <div class="row g-2">
+                <div class="col-4"><div class="input-group"><span class="input-group-text small">Content</span>{{ form.wsdc_content_weight }}</div></div>
+                <div class="col-4"><div class="input-group"><span class="input-group-text small">Style</span>{{ form.wsdc_style_weight }}</div></div>
+                <div class="col-4"><div class="input-group"><span class="input-group-text small">Strategy</span>{{ form.wsdc_strategy_weight }}</div></div>
+              </div>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary mt-3">Save Changes</button>
+          <a href="{% url 'tournament_overview' slug=tournament.slug %}" class="btn btn-outline-secondary mt-3 ms-2">Cancel</a>
+        </form>
       </div>
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  const formatSel = document.getElementById("id_format");
+  const wsdcFields = document.getElementById("wsdc-fields");
+  function toggleWsdc() {
+    wsdcFields.style.display = formatSel.value === "WSDC" ? "block" : "none";
+  }
+  formatSel.addEventListener("change", toggleWsdc);
+  toggleWsdc();
+})();
+</script>
 {% endblock %}
