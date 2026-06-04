@@ -124,13 +124,31 @@ def generate_bp_draw(round_obj):
     Returns the list of created Debate objects.
     """
     tournament = round_obj.tournament
-    teams = list(tournament.teams.filter(active=True, checked_in=True))
+
+    # Use checked-in teams if any have been checked in; otherwise use all active teams.
+    # This means check-in is optional — the draw will always work even without it.
+    checked_in_teams = list(tournament.teams.filter(active=True, checked_in=True))
+    all_active_teams = list(tournament.teams.filter(active=True))
+
+    if checked_in_teams:
+        teams = checked_in_teams
+    else:
+        teams = all_active_teams
+
     random.shuffle(teams)
+
+    if len(teams) == 0:
+        raise ValueError(
+            "Cannot generate draw: no teams are registered in this tournament. "
+            "Add teams under Participants → Teams first."
+        )
 
     if len(teams) % 4 != 0:
         raise ValueError(
-            f"Cannot generate draw: {len(teams)} teams checked in. "
-            "Team count must be divisible by 4. Add swing teams first."
+            f"Cannot generate draw: {len(teams)} team{'s' if len(teams) != 1 else ''} available. "
+            f"BP requires a number divisible by 4. "
+            f"You need {4 - (len(teams) % 4)} more team{'s' if 4 - (len(teams) % 4) != 1 else ''} "
+            f"(or add a swing team to make up the numbers)."
         )
 
     # Delete existing draft debates

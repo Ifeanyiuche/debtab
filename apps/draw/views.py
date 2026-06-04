@@ -24,6 +24,13 @@ def draw_view(request, slug, round_seq):
     ).select_related("venue").order_by("room_rank")
     all_adjs = t.adjudicators.filter(active=True).order_by("name")
     all_teams = t.teams.filter(active=True).order_by("name")
+
+    # Show how many teams are available and whether divisibility is satisfied
+    checked_in_count = t.teams.filter(active=True, checked_in=True).count()
+    total_active = t.teams.filter(active=True).count()
+    draw_team_count = checked_in_count if checked_in_count > 0 else total_active
+    teams_ok = draw_team_count > 0 and draw_team_count % 4 == 0
+
     context = {
         "tournament": t,
         "round": r,
@@ -31,6 +38,10 @@ def draw_view(request, slug, round_seq):
         "all_adjs": all_adjs,
         "all_teams": all_teams,
         "bp_positions": ["OG", "OO", "CG", "CO"],
+        "draw_team_count": draw_team_count,
+        "teams_ok": teams_ok,
+        "teams_needed": (4 - draw_team_count % 4) % 4,
+        "using_checkin": checked_in_count > 0,
     }
     return render(request, "draw/draw.html", context)
 

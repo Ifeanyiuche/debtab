@@ -34,6 +34,28 @@
 <div class="alert alert-success py-2"><i class="bi bi-eye"></i> Draw is <strong>public</strong>. <a href="{% url 'public_draw' slug=tournament.slug round_seq=round.seq %}" target="_blank">View public draw</a></div>
 {% endif %}
 
+<!-- Team readiness indicator -->
+{% if not debates %}
+<div class="alert {% if teams_ok %}alert-success{% else %}alert-warning{% endif %} py-2 mb-3">
+  {% if teams_ok %}
+    <i class="bi bi-check-circle-fill text-success"></i>
+    <strong>Ready to generate:</strong> {{ draw_team_count }} team{{ draw_team_count|pluralize }} available
+    {% if using_checkin %}(checked-in only){% else %}(all active teams — no check-in done yet){% endif %}.
+    Click <strong>Generate Draw</strong> above.
+  {% elif draw_team_count == 0 %}
+    <i class="bi bi-exclamation-triangle-fill text-danger"></i>
+    <strong>No teams registered.</strong>
+    <a href="{% url 'team_create' slug=tournament.slug %}">Add teams</a> under Participants first.
+  {% else %}
+    <i class="bi bi-exclamation-triangle-fill text-warning"></i>
+    <strong>{{ draw_team_count }} team{{ draw_team_count|pluralize }} available</strong>
+    {% if using_checkin %}(checked in){% endif %} —
+    BP requires a multiple of 4. You need <strong>{{ teams_needed }} more</strong> team{{ teams_needed|pluralize }}.
+    <a href="{% url 'team_create' slug=tournament.slug %}">Add a swing team</a> to make up the numbers.
+  {% endif %}
+</div>
+{% endif %}
+
 {% if debates %}
 <div class="row g-3">
   {% for debate in debates %}
