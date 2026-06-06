@@ -110,7 +110,13 @@ class Round(models.Model):
     draw_type = models.CharField(max_length=2, choices=DRAW_CHOICES, default=DRAW_POWER)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT)
     is_break_round = models.BooleanField(default=False)
+    break_size = models.PositiveIntegerField(null=True, blank=True,
+        help_text="Number of breaking teams for elimination rounds (e.g. 8 for Quarters, 4 for Semis)")
     silent = models.BooleanField(default=False)
+    # Controls whether this round appears in the PUBLIC tab.
+    # Silent rounds default to False; non-silent rounds default to True.
+    # Tab master can override either way. "Release Full Tab" sets all to True.
+    public_tab_visible = models.BooleanField(default=True)
     draw_released = models.BooleanField(default=False)
     results_released = models.BooleanField(default=False)
     motions_released = models.BooleanField(default=False)

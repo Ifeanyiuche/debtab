@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Draws — {{ tournament.name }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h3 class="fw-bold mb-0"><i class="bi bi-diagram-2"></i> All Draws</h3>
+</div>
+
+{% for rd in rounds_data %}
+{% with r=rd.round %}
+<div class="card border-0 shadow-sm mb-3">
+  <div class="card-header d-flex justify-content-between align-items-center
+    {% if r.status == 'completed' %}bg-success text-white{% elif r.status == 'released' %}bg-primary text-white{% elif r.status == 'confirmed' %}bg-secondary text-white{% else %}bg-light{% endif %}">
+    <span class="fw-semibold">
+      <i class="bi bi-{% if r.is_break_round %}trophy-fill{% else %}circle{% endif %}"></i>
+      {{ r.name }}
+      {% if r.is_break_round %}<span class="badge bg-warning text-dark ms-1">Break</span>{% endif %}
+      {% if r.silent %}<span class="badge bg-dark ms-1">Silent</span>{% endif %}
+    </span>
+    <div class="d-flex gap-2 align-items-center">
+      <span class="small opacity-75">{{ rd.count }} room{{ rd.count|pluralize }}</span>
+      <span class="badge bg-light text-dark">{{ r.get_status_display }}</span>
+      <a href="{% url 'draw_view' slug=tournament.slug round_seq=r.seq %}" class="btn btn-sm btn-outline-light">
+        <i class="bi bi-pencil"></i> Manage
+      </a>
+    </div>
+  </div>
+  {% if rd.debates %}
+  <div class="table-responsive">
+    <table class="table table-sm mb-0 table-hover">
+      <thead class="table-light">
+        <tr>
+          <th style="width:90px;">Room</th>
+          <th class="text-primary">OG</th>
+          <th class="text-danger">OO</th>
+          <th class="text-success">CG</th>
+          <th class="text-warning">CO</th>
+          <th>Chair</th>
+          <th>Panellists</th>
+          <th class="text-center" style="width:80px;">Result</th>
+          <th style="width:60px;"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rd.debates %}
+        <tr>
+          <td class="fw-semibold text-muted small">
+            {% if row.debate.venue %}{{ row.debate.venue.name }}{% else %}Room {{ row.debate.room_rank }}{% endif %}
+          </td>
+          <td class="small">{% if row.og %}<span class="fw-semibold">{{ row.og.name }}</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+          <td class="small">{% if row.oo %}<span class="fw-semibold">{{ row.oo.name }}</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+          <td class="small">{% if row.cg %}<span class="fw-semibold">{{ row.cg.name }}</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+          <td class="small">{% if row.co %}<span class="fw-semibold">{{ row.co.name }}</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+          <td class="small">{% if row.chair %}{{ row.chair.name }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+          <td class="small">
+            {% for p in row.panellists %}<span class="badge bg-secondary me-1">{{ p.name }}</span>{% empty %}<span class="text-muted">—</span>{% endfor %}
+          </td>
+          <td class="text-center">
+            {% if row.debate.result_status == "confirmed" %}<span class="badge bg-success">Done</span>
+            {% elif row.debate.result_status == "ballot_in" %}<span class="badge bg-warning text-dark">In</span>
+            {% else %}<span class="badge bg-light text-dark border">—</span>{% endif %}
+          </td>
+          <td>
+            <a href="{% url 'ballot_entry' slug=tournament.slug round_seq=r.seq debate_id=row.debate.pk %}" class="btn btn-outline-success btn-sm py-0">Ballot</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="card-body text-muted small py-2">
+    <i class="bi bi-info-circle"></i> No draw yet.
+    <a href="{% url 'draw_view' slug=tournament.slug round_seq=r.seq %}">Generate draw →</a>
+  </div>
+  {% endif %}
+</div>
+{% endwith %}
+{% empty %}
+<div class="alert alert-info"><i class="bi bi-info-circle"></i> No rounds created yet.</div>
+{% endfor %}
+{% endblock %}

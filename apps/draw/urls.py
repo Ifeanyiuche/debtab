@@ -2,6 +2,7 @@
 from . import views
 
 urlpatterns = [
+    path("draws/", views.draws_overview, name="draws_overview"),
     path("rounds/<int:round_seq>/draw/", views.draw_view, name="draw_view"),
     path("rounds/<int:round_seq>/draw/generate/", views.generate_draw, name="generate_draw"),
     path("rounds/<int:round_seq>/draw/auto-allocate/", views.auto_allocate, name="auto_allocate"),

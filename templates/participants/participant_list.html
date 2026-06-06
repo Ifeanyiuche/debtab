@@ -172,5 +172,17 @@ document.getElementById("allSearch").addEventListener("input", function () {
     row.style.display = row.textContent.toLowerCase().indexOf(q) >= 0 ? "" : "none";
   });
 });
+
+// Activate tab from URL hash (e.g. #teams-tab or #adj-tab)
+(function () {
+  var hash = window.location.hash;
+  if (hash) {
+    var target = document.querySelector('[href="' + hash + '"]');
+    if (target) {
+      var tab = new bootstrap.Tab(target);
+      tab.show();
+    }
+  }
+})();
 </script>
 {% endblock %}

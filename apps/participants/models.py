@@ -62,6 +62,17 @@ class Team(models.Model):
 
 
 class Adjudicator(models.Model):
+    TYPE_CAP = 'C'
+    TYPE_INDEPENDENT = 'I'
+    TYPE_SCHOOL = 'S'
+    TYPE_NEW = 'N'
+    TYPE_CHOICES = [
+        (TYPE_CAP, 'Core Adjudication Panel (CAP)'),
+        (TYPE_INDEPENDENT, 'Independent Adjudicator (IA)'),
+        (TYPE_SCHOOL, 'School Judge'),
+        (TYPE_NEW, 'New / Trainee Judge'),
+    ]
+
     tournament = models.ForeignKey(Tournament, on_delete=models.CASCADE, related_name='adjudicators')
     name = models.CharField(max_length=100)
     institution = models.ForeignKey(
@@ -69,6 +80,7 @@ class Adjudicator(models.Model):
     )
     email = models.EmailField(blank=True)
     base_score = models.FloatField(default=1.5)
+    adj_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=TYPE_INDEPENDENT)
     independent = models.BooleanField(default=False)
     checked_in = models.BooleanField(default=False)
     active = models.BooleanField(default=True)

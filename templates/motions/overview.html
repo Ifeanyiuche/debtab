@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}Motions — {{ tournament.name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h3 class="fw-bold mb-0"><i class="bi bi-card-text"></i> Motions</h3>
+</div>
+
+{% for round in rounds %}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+    <span class="fw-semibold"><i class="bi bi-diagram-2"></i> {{ round.name }}</span>
+    <button class="btn btn-sm btn-outline-light" type="button" data-bs-toggle="collapse"
+            data-bs-target="#addMotion{{ round.seq }}">
+      <i class="bi bi-plus-lg"></i> Add Motion
+    </button>
+  </div>
+
+  <!-- Existing motions -->
+  <div class="list-group list-group-flush">
+    {% for motion in round.motions.all %}
+    <div class="list-group-item py-3" id="motion-row-{{ motion.pk }}">
+      <!-- View mode -->
+      <div id="view-{{ motion.pk }}">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+          <div class="flex-grow-1">
+            {% if motion.reference %}
+            <div class="text-muted small mb-1"><i class="bi bi-bookmark"></i> {{ motion.reference }}</div>
+            {% endif %}
+            <p class="mb-1 fw-semibold">{{ motion.text }}</p>
+            {% if motion.info_slide %}
+            <div class="mt-1 p-2 bg-light rounded small text-muted">
+              <strong>Info slide:</strong> {{ motion.info_slide }}
+            </div>
+            {% endif %}
+          </div>
+          <div class="d-flex gap-1 flex-shrink-0">
+            <span class="badge {% if motion.released %}bg-success{% else %}bg-secondary{% endif %} align-self-start">
+              {% if motion.released %}Released{% else %}Hidden{% endif %}
+            </span>
+            <button class="btn btn-outline-secondary btn-sm" onclick="toggleEdit({{ motion.pk }})">
+              <i class="bi bi-pencil"></i>
+            </button>
+            <form method="post" class="d-inline" onsubmit="return confirm('Delete this motion?')">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="delete">
+              <input type="hidden" name="motion_id" value="{{ motion.pk }}">
+              <button class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i></button>
+            </form>
+            <form method="post" action="{% url 'release_motion' slug=tournament.slug round_seq=round.seq pk=motion.pk %}" class="d-inline">
+              {% csrf_token %}
+              <button class="btn btn-sm {% if motion.released %}btn-outline-warning{% else %}btn-outline-success{% endif %}">
+                {% if motion.released %}<i class="bi bi-eye-slash"></i>{% else %}<i class="bi bi-eye"></i>{% endif %}
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Edit mode (hidden by default) -->
+      <div id="edit-{{ motion.pk }}" style="display:none;">
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="edit">
+          <input type="hidden" name="motion_id" value="{{ motion.pk }}">
+          <div class="mb-2">
+            <label class="form-label fw-semibold small">Motion *</label>
+            <textarea name="text" class="form-control form-control-sm" rows="2" required>{{ motion.text }}</textarea>
+          </div>
+          <div class="mb-2">
+            <label class="form-label fw-semibold small">Reference</label>
+            <input type="text" name="reference" class="form-control form-control-sm" value="{{ motion.reference }}">
+          </div>
+          <div class="mb-2">
+            <label class="form-label fw-semibold small">Info Slide</label>
+            <textarea name="info_slide" class="form-control form-control-sm" rows="2">{{ motion.info_slide }}</textarea>
+          </div>
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-save"></i> Save</button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="toggleEdit({{ motion.pk }})">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    {% empty %}
+    <div class="list-group-item text-muted small py-3">No motions for this round yet.</div>
+    {% endfor %}
+  </div>
+
+  <!-- Collapsible add-motion form -->
+  <div class="collapse" id="addMotion{{ round.seq }}">
+    <div class="card-body border-top bg-light">
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="add">
+        <input type="hidden" name="round_seq" value="{{ round.seq }}">
+        <div class="mb-2">
+          <label class="form-label fw-semibold small">Motion *</label>
+          <textarea name="text" class="form-control form-control-sm" rows="2" placeholder="This house believes that…" required></textarea>
+        </div>
+        <div class="row g-2 mb-2">
+          <div class="col-md-6">
+            <label class="form-label fw-semibold small">Reference</label>
+            <input type="text" name="reference" class="form-control form-control-sm" placeholder="e.g. THW abolish X">
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold small">Info Slide</label>
+          <textarea name="info_slide" class="form-control form-control-sm" rows="2" placeholder="Background context for the motion…"></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-plus"></i> Add Motion</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% empty %}
+<div class="alert alert-info"><i class="bi bi-info-circle"></i> No rounds have been created yet. <a href="{% url 'round_create' slug=tournament.slug %}">Create a round</a> first.</div>
+{% endfor %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleEdit(pk) {
+  var view = document.getElementById("view-" + pk);
+  var edit = document.getElementById("edit-" + pk);
+  if (edit.style.display === "none") {
+    view.style.display = "none";
+    edit.style.display = "block";
+  } else {
+    view.style.display = "block";
+    edit.style.display = "none";
+  }
+}
+</script>
+{% endblock %}

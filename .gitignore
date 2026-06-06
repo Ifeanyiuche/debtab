@@ -12,6 +12,10 @@ db.sqlite3
 # Local dev files
 server_out.txt
 server_err.txt
+server.log
+server_err.log
+*.log
+ballot_debug.json
 
 # Python
 *.egg-info/

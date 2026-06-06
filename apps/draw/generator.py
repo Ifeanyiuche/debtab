@@ -58,19 +58,23 @@ def position_cost(team_id, position, history):
 def best_position_assignment(teams, history):
     """
     Try all 24 permutations of BP_POSITIONS for the 4 teams.
-    Return the permutation with the lowest total position-repetition cost.
-    Ties are broken randomly.
+    Primary objective: minimise the number of teams that repeat a position.
+    Secondary objective: minimise total accumulated position count.
+    Ties at both levels broken randomly.
     """
     best_perms = []
+    best_repeats = float("inf")
     best_cost = float("inf")
     perms = list(itertools.permutations(BP_POSITIONS))
     random.shuffle(perms)
     for perm in perms:
+        repeats = sum(1 for t, pos in zip(teams, perm) if position_cost(t.id, pos, history) > 0)
         cost = sum(position_cost(t.id, pos, history) for t, pos in zip(teams, perm))
-        if cost < best_cost:
+        if repeats < best_repeats or (repeats == best_repeats and cost < best_cost):
+            best_repeats = repeats
             best_cost = cost
             best_perms = [perm]
-        elif cost == best_cost:
+        elif repeats == best_repeats and cost == best_cost:
             best_perms.append(perm)
     return dict(zip(teams, random.choice(best_perms)))
 
@@ -209,34 +213,164 @@ def generate_bp_draw(round_obj):
 @transaction.atomic
 def auto_allocate_adjudicators(round_obj):
     """
-    Simple auto-allocation: sort adjudicators by base_score desc,
-    assign the highest-ranked available adj as chair to the top room, etc.
-    Avoids institution clashes with teams in the room.
+    Enhanced auto-allocation:
+    - Power ranking: feedback avg score (normalised) preferred over base_score
+    - Fills chair + up to 2 panelists per room; trainees distributed last
+    - Avoids institution clashes with teams in the room
+    - Avoids judges who have already judged the same teams in prior rounds
+    - Break rounds: pool is restricted to judges on the JudgeBreak list
     """
-    debates = list(round_obj.debates.all().order_by("room_rank"))
-    adjs = list(round_obj.tournament.adjudicators.filter(active=True, checked_in=True).order_by("-base_score"))
+    from collections import defaultdict
+    from apps.feedback.models import AdjudicatorFeedback
+    from apps.draw.models import JudgeBreak
 
-    # Clear existing allocations
+    tournament = round_obj.tournament
+
+    # ── Build judge pool ────────────────────────────────────────────────────
+    if round_obj.is_break_round:
+        breaking_pks = set(
+            round_obj.judge_breaks.values_list("adjudicator_id", flat=True)
+        )
+        pool = list(
+            Adjudicator.objects.filter(
+                tournament=tournament, active=True, pk__in=breaking_pks
+            ).select_related("institution")
+        )
+    else:
+        checked_in = list(
+            tournament.adjudicators.filter(active=True, checked_in=True)
+            .select_related("institution")
+        )
+        pool = checked_in if checked_in else list(
+            tournament.adjudicators.filter(active=True).select_related("institution")
+        )
+
+    # ── Power score: feedback avg (normalised 0-5) else base_score ──────────
+    fb_rows = (
+        AdjudicatorFeedback.objects
+        .filter(adjudicator__in=pool, ignored=False)
+        .values("adjudicator_id", "score")
+    )
+    scores_map = defaultdict(list)
+    for row in fb_rows:
+        scores_map[row["adjudicator_id"]].append(row["score"])
+
+    def power_score(adj):
+        scores = scores_map.get(adj.pk, [])
+        return (sum(scores) / len(scores) / 2) if scores else adj.base_score
+
+    # ── Separate trainees from regular judges ────────────────────────────────
+    trainees = [a for a in pool if a.adj_type == Adjudicator.TYPE_NEW]
+    regulars = sorted(
+        [a for a in pool if a.adj_type != Adjudicator.TYPE_NEW],
+        key=power_score, reverse=True
+    )
+
+    # ── Judge–team history (who has judged whom in prior rounds) ────────────
+    past_da = list(
+        DebateAdjudicator.objects.filter(
+            debate__round__tournament=tournament,
+            debate__round__seq__lt=round_obj.seq,
+        ).values("adjudicator_id", "debate_id")
+    )
+    past_dt = list(
+        DebateTeam.objects.filter(
+            debate__round__tournament=tournament,
+            debate__round__seq__lt=round_obj.seq,
+        ).values("debate_id", "team_id")
+    )
+    teams_per_debate = defaultdict(set)
+    for dt in past_dt:
+        teams_per_debate[dt["debate_id"]].add(dt["team_id"])
+    adj_seen_teams = defaultdict(set)
+    for da in past_da:
+        adj_seen_teams[da["adjudicator_id"]] |= teams_per_debate[da["debate_id"]]
+
+    # ── Clear existing allocations ───────────────────────────────────────────
     DebateAdjudicator.objects.filter(debate__round=round_obj).delete()
 
+    def pick(pool_list, room_teams, room_insts, skip_ids):
+        """Best available judge: prefer no repeat teams AND no institution clash."""
+        for adj in pool_list:
+            if adj.pk in skip_ids:
+                continue
+            if adj.institution_id and adj.institution_id in room_insts:
+                continue
+            if adj_seen_teams[adj.pk] & room_teams:
+                continue
+            return adj
+        # Relax: allow team repeat, still avoid institution clash
+        for adj in pool_list:
+            if adj.pk in skip_ids:
+                continue
+            if adj.institution_id and adj.institution_id in room_insts:
+                continue
+            return adj
+        # Last resort: take anyone
+        for adj in pool_list:
+            if adj.pk not in skip_ids:
+                return adj
+        return None
+
+    debates = list(round_obj.debates.prefetch_related("debate_teams__team").order_by("room_rank"))
+
+    if round_obj.is_break_round and debates:
+        # ── Break round: ALL breaking judges must be allocated ───────────────
+        # Sort entire pool best-first (trainees included — they broke too)
+        all_breaking = sorted(pool, key=power_score, reverse=True)
+        remaining = list(all_breaking)
+
+        # Step 1: assign best available judge as chair for each room
+        for debate in debates:
+            room_teams = {dt.team_id for dt in debate.debate_teams.all()}
+            room_insts = {dt.team.institution_id for dt in debate.debate_teams.all() if dt.team.institution_id}
+            chair = pick(remaining, room_teams, room_insts, set())
+            if chair:
+                DebateAdjudicator.objects.create(
+                    debate=debate, adjudicator=chair, role=DebateAdjudicator.ROLE_CHAIR
+                )
+                remaining.remove(chair)
+
+        # Step 2: distribute every remaining breaking judge round-robin as panelists
+        for idx, adj in enumerate(remaining):
+            debate = debates[idx % len(debates)]
+            DebateAdjudicator.objects.create(
+                debate=debate, adjudicator=adj, role=DebateAdjudicator.ROLE_PANEL
+            )
+        return
+
+    # ── Prelim round: chair + 2 panelists per room, trainees distributed last ─
+    available = list(regulars)  # sorted best-first; consumed as we assign
+
     for debate in debates:
-        team_institutions = set(
-            dt.team.institution_id
-            for dt in debate.debate_teams.select_related("team")
-            if dt.team.institution_id
+        room_teams = {dt.team_id for dt in debate.debate_teams.all()}
+        room_insts = {dt.team.institution_id for dt in debate.debate_teams.all() if dt.team.institution_id}
+        used = set()
+
+        # Chair (1)
+        chair = pick(available, room_teams, room_insts, used)
+        if chair:
+            DebateAdjudicator.objects.create(
+                debate=debate, adjudicator=chair, role=DebateAdjudicator.ROLE_CHAIR
+            )
+            available.remove(chair)
+            used.add(chair.pk)
+
+        # Panelists (up to 2)
+        for _ in range(2):
+            panelist = pick(available, room_teams, room_insts, used)
+            if panelist:
+                DebateAdjudicator.objects.create(
+                    debate=debate, adjudicator=panelist, role=DebateAdjudicator.ROLE_PANEL
+                )
+                available.remove(panelist)
+                used.add(panelist.pk)
+
+    # Distribute trainees (1 per room, cycling if more rooms than trainees)
+    for i, debate in enumerate(debates):
+        if not trainees:
+            break
+        trainee = trainees[i % len(trainees)]
+        DebateAdjudicator.objects.create(
+            debate=debate, adjudicator=trainee, role=DebateAdjudicator.ROLE_TRAINEE
         )
-        # Find best chair (no institution clash)
-        for adj in adjs:
-            if adj.institution_id not in team_institutions:
-                DebateAdjudicator.objects.create(
-                    debate=debate, adjudicator=adj, role=DebateAdjudicator.ROLE_CHAIR
-                )
-                adjs.remove(adj)
-                break
-        else:
-            # No clash-free adj available — assign anyway
-            if adjs:
-                adj = adjs.pop(0)
-                DebateAdjudicator.objects.create(
-                    debate=debate, adjudicator=adj, role=DebateAdjudicator.ROLE_CHAIR
-                )

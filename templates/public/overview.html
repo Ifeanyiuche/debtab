@@ -1,27 +1,63 @@
-﻿{% extends "base.html" %}
-{% block title %}{{ tournament.name }} — Public{% endblock %}
+{% extends "base.html" %}
+{% block title %}{{ tournament.name }}{% endblock %}
 {% block content %}
 <div class="text-center mb-4">
   <h2 class="fw-bold">{{ tournament.name }}</h2>
-  <p class="text-muted">{{ tournament.get_format_display }}</p>
+  <p class="text-muted mb-0">{{ tournament.get_format_display }}</p>
 </div>
-<div class="row g-3 justify-content-center">
+
+<!-- Quick links -->
+<div class="row g-3 justify-content-center mb-4">
+  <div class="col-6 col-md-3">
+    <a href="{% url 'public_team_tab' slug=tournament.slug %}" class="card border-0 shadow-sm text-decoration-none text-center p-3 h-100 d-flex flex-column align-items-center justify-content-center">
+      <i class="bi bi-list-ol fs-2 text-primary mb-2"></i>
+      <span class="fw-semibold">Team Tab</span>
+    </a>
+  </div>
+  <div class="col-6 col-md-3">
+    <a href="{% url 'public_speaker_tab' slug=tournament.slug %}" class="card border-0 shadow-sm text-decoration-none text-center p-3 h-100 d-flex flex-column align-items-center justify-content-center">
+      <i class="bi bi-trophy fs-2 text-warning mb-2"></i>
+      <span class="fw-semibold">Speaker Tab</span>
+    </a>
+  </div>
+  <div class="col-6 col-md-3">
+    <a href="{% url 'public_participant_list' slug=tournament.slug %}" class="card border-0 shadow-sm text-decoration-none text-center p-3 h-100 d-flex flex-column align-items-center justify-content-center">
+      <i class="bi bi-people fs-2 text-success mb-2"></i>
+      <span class="fw-semibold">Participants</span>
+    </a>
+  </div>
+</div>
+
+<!-- Rounds -->
+<h5 class="fw-semibold mb-3">Rounds</h5>
+<div class="row g-3">
   {% for r in rounds %}
   <div class="col-md-4">
     <div class="card border-0 shadow-sm">
       <div class="card-body text-center">
-        <h5 class="fw-semibold">{{ r.name }}</h5>
-        {% if r.draw_released %}<a href="{% url 'public_draw' slug=tournament.slug round_seq=r.seq %}" class="btn btn-outline-primary btn-sm me-1"><i class="bi bi-diagram-2"></i> Draw</a>{% endif %}
-        {% if r.results_released %}<a href="{% url 'public_results' slug=tournament.slug round_seq=r.seq %}" class="btn btn-outline-success btn-sm"><i class="bi bi-trophy"></i> Results</a>{% endif %}
+        <h5 class="fw-semibold mb-2">{{ r.name }}</h5>
+        <div class="d-flex gap-2 justify-content-center flex-wrap">
+          {% if r.draw_released %}
+          <a href="{% url 'public_draw' slug=tournament.slug round_seq=r.seq %}" class="btn btn-outline-primary btn-sm">
+            <i class="bi bi-diagram-2"></i> Draw
+          </a>
+          {% endif %}
+          {% if r.results_released %}
+          <a href="{% url 'public_results' slug=tournament.slug round_seq=r.seq %}" class="btn btn-outline-success btn-sm">
+            <i class="bi bi-trophy"></i> Results
+          </a>
+          {% endif %}
+          {% if not r.draw_released and not r.results_released %}
+          <span class="text-muted small">Not yet released</span>
+          {% endif %}
+        </div>
       </div>
     </div>
   </div>
   {% empty %}
-  <div class="col-md-6"><div class="alert alert-info text-center"><i class="bi bi-hourglass"></i> No results released yet.</div></div>
+  <div class="col-12">
+    <div class="alert alert-info text-center"><i class="bi bi-hourglass"></i> No results released yet. Check back soon.</div>
+  </div>
   {% endfor %}
-</div>
-<div class="text-center mt-4">
-  <a href="{% url 'public_team_tab' slug=tournament.slug %}" class="btn btn-outline-dark me-2"><i class="bi bi-list-ol"></i> Team Tab</a>
-  <a href="{% url 'public_speaker_tab' slug=tournament.slug %}" class="btn btn-outline-dark"><i class="bi bi-trophy"></i> Speaker Tab</a>
 </div>
 {% endblock %}

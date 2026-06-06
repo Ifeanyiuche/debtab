@@ -10,20 +10,24 @@ from apps.participants.models import Team, Speaker
 
 # ─── BP ──────────────────────────────────────────────────────────────────────
 
-def bp_team_standings(tournament, include_silent=False):
+def bp_team_standings(tournament, include_silent=False, public_only=False):
     """
     Returns sorted list of dicts for the team tab.
-    Includes per-round breakdown: position, points, total speaker score.
+    include_silent=True  → include rounds marked as silent (backend/admin view).
+    public_only=True     → restrict to rounds where public_tab_visible=True.
     Tiebreaker: total_points > total_speaker_score > first_places
     """
     qs = DebateTeam.objects.filter(
         debate__round__tournament=tournament,
+        debate__round__is_break_round=False,  # out-rounds excluded from team tab
         team__active=True,
         points__isnull=False,
     ).select_related("team__institution", "debate__round").order_by("debate__round__seq")
 
     if not include_silent:
         qs = qs.filter(debate__round__silent=False)
+    if public_only:
+        qs = qs.filter(debate__round__public_tab_visible=True)
 
     agg = {}
     for dt in qs:
@@ -62,14 +66,16 @@ def bp_team_standings(tournament, include_silent=False):
     return standings
 
 
-def bp_speaker_standings(tournament, include_silent=False):
+def bp_speaker_standings(tournament, include_silent=False, public_only=False):
     """
     Returns sorted list of dicts for the speaker tab.
-    Includes per-round scores, total, average, standard deviation, trimmed average.
-    Ironman scores (ironman=True) are always excluded.
+    include_silent=True  → include silent rounds (backend/admin view).
+    public_only=True     → restrict to rounds where public_tab_visible=True.
+    Ironman scores are always excluded.
     """
     qs = SpeakerScore.objects.filter(
         ballot__debate__round__tournament=tournament,
+        ballot__debate__round__is_break_round=False,  # out-rounds excluded from speaker tab
         ballot__confirmed=True,
         ironman=False,
         speaker__isnull=False,
@@ -77,6 +83,8 @@ def bp_speaker_standings(tournament, include_silent=False):
 
     if not include_silent:
         qs = qs.filter(ballot__debate__round__silent=False)
+    if public_only:
+        qs = qs.filter(ballot__debate__round__public_tab_visible=True)
 
     agg = {}
     for ss in qs:
@@ -123,12 +131,22 @@ def bp_speaker_standings(tournament, include_silent=False):
     return standings
 
 
-def get_completed_rounds(tournament, include_silent=False):
-    """Returns rounds that have at least one confirmed result, ordered by seq."""
-    from apps.tournaments.models import Round
-    qs = tournament.rounds.filter(status="completed").order_by("seq")
+def get_completed_rounds(tournament, include_silent=False, public_only=False):
+    """
+    Returns rounds with confirmed ballots, ordered by seq.
+    include_silent=True → include silent rounds (backend view).
+    public_only=True    → only rounds where public_tab_visible=True.
+    """
+    round_ids = DebateTeam.objects.filter(
+        debate__round__tournament=tournament,
+        debate__round__is_break_round=False,  # out-rounds excluded from column headers
+        points__isnull=False,
+    ).values_list("debate__round_id", flat=True).distinct()
+    qs = tournament.rounds.filter(id__in=round_ids).order_by("seq")
     if not include_silent:
         qs = qs.filter(silent=False)
+    if public_only:
+        qs = qs.filter(public_tab_visible=True)
     return list(qs)
 
 

@@ -66,12 +66,14 @@
           <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown"><i class="bi bi-people"></i> Participants</a>
           <ul class="dropdown-menu">
             <li><a class="dropdown-item fw-semibold text-primary" href="{% url 'participant_list' slug=tournament.slug %}"><i class="bi bi-people-fill"></i> All Participants</a></li>
-            <li><a class="dropdown-item text-success" href="{% url 'participant_register' slug=tournament.slug %}"><i class="bi bi-person-plus-fill"></i> Register One</a></li>
+            <li><a class="dropdown-item" href="{% url 'participant_list' slug=tournament.slug %}#teams-tab"><i class="bi bi-shield-shaded"></i> Teams</a></li>
+            <li><a class="dropdown-item" href="{% url 'participant_list' slug=tournament.slug %}#adj-tab"><i class="bi bi-person-badge"></i> Adjudicators</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item text-success" href="{% url 'participant_register' slug=tournament.slug %}"><i class="bi bi-person-plus-fill"></i> Register Participant</a></li>
+            <li><a class="dropdown-item" href="{% url 'team_create' slug=tournament.slug %}"><i class="bi bi-shield-shaded"></i> Add Team</a></li>
             <li><a class="dropdown-item text-info" href="{% url 'batch_upload' slug=tournament.slug %}"><i class="bi bi-upload"></i> Batch Upload</a></li>
             <li><hr class="dropdown-divider"></li>
-            <li><a class="dropdown-item" href="{% url 'team_create' slug=tournament.slug %}"><i class="bi bi-shield-shaded"></i> Add Team</a></li>
             <li><a class="dropdown-item" href="{% url 'institution_list' slug=tournament.slug %}"><i class="bi bi-building"></i> Institutions</a></li>
-            <li><hr class="dropdown-divider"></li>
             <li><a class="dropdown-item" href="{% url 'check_in' slug=tournament.slug %}"><i class="bi bi-check2-square"></i> Check In</a></li>
           </ul>
         </li>
@@ -81,8 +83,13 @@
           <ul class="dropdown-menu">
             <li><a class="dropdown-item" href="{% url 'team_tab' slug=tournament.slug %}"><i class="bi bi-list-ol"></i> Team Tab</a></li>
             <li><a class="dropdown-item" href="{% url 'speaker_tab' slug=tournament.slug %}"><i class="bi bi-trophy"></i> Speaker Tab</a></li>
+            <li><a class="dropdown-item" href="{% url 'judge_tab' slug=tournament.slug %}"><i class="bi bi-person-badge"></i> Judge Tab</a></li>
           </ul>
         </li>
+        <li class="nav-item"><a class="nav-link" href="{% url 'draws_overview' slug=tournament.slug %}"><i class="bi bi-diagram-2"></i> Draws</a></li>
+        <li class="nav-item"><a class="nav-link" href="{% url 'ballots_overview' slug=tournament.slug %}"><i class="bi bi-card-checklist"></i> Ballots</a></li>
+        <li class="nav-item"><a class="nav-link" href="{% url 'break_setup' slug=tournament.slug %}"><i class="bi bi-trophy-fill"></i> Breaks</a></li>
+        <li class="nav-item"><a class="nav-link" href="{% url 'motions_overview' slug=tournament.slug %}"><i class="bi bi-card-text"></i> Motions</a></li>
         <li class="nav-item"><a class="nav-link" href="{% url 'feedback_overview' slug=tournament.slug %}"><i class="bi bi-chat-left-text"></i> Feedback</a></li>
         <li class="nav-item">
           <a class="nav-link text-success" href="{% url 'public_overview' slug=tournament.slug %}" target="_blank">

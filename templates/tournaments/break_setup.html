@@ -1,0 +1,563 @@
+{% extends "base.html" %}
+{% block title %}Breaks — {{ tournament.name }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h3 class="fw-bold mb-0"><i class="bi bi-trophy-fill"></i> Break Setup</h3>
+  <a href="{% url 'round_create' slug=tournament.slug %}?next=break_setup" class="btn btn-primary btn-sm">
+    <i class="bi bi-plus-circle"></i> Add Round Manually
+  </a>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- SECTION 1: Generate a new break round                             -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="row g-4 mb-4">
+  <!-- Team standings -->
+  <div class="col-md-7">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-dark text-white fw-semibold">
+        <i class="bi bi-list-ol"></i> Current Team Standings
+        <span class="fw-normal text-white-50 ms-2 small">({{ prelim_rounds|length }} prelim round{{ prelim_rounds|length|pluralize }})</span>
+      </div>
+      {% if standings %}
+      <div class="table-responsive">
+        <table class="table table-sm mb-0 table-hover">
+          <thead class="table-light">
+            <tr><th>#</th><th>Team</th><th class="text-center">Pts</th><th class="text-center">Spk</th></tr>
+          </thead>
+          <tbody>
+            {% for row in standings %}{% if not row.team.is_swing %}
+            <tr class="{% if forloop.counter <= 4 %}table-danger{% elif forloop.counter <= 8 %}table-success{% elif forloop.counter <= 16 %}table-info{% elif forloop.counter <= 32 %}table-warning{% endif %}">
+              <td class="fw-bold text-muted">{{ row.rank }}</td>
+              <td>{% if row.team.emoji %}{{ row.team.emoji }} {% endif %}{{ row.team.name }}</td>
+              <td class="text-center fw-bold">{{ row.total_points }}</td>
+              <td class="text-center">{{ row.total_score|floatformat:0 }}</td>
+            </tr>
+            {% endif %}{% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="card-footer small text-muted d-flex flex-wrap gap-3">
+        <span><span class="badge bg-danger">&nbsp;</span> Top 4 — Finals</span>
+        <span><span class="badge bg-success">&nbsp;</span> Top 8 — Semis</span>
+        <span><span class="badge bg-info">&nbsp;</span> Top 16 — Quarters</span>
+        <span><span class="badge bg-warning text-dark">&nbsp;</span> Top 32 — Octos</span>
+      </div>
+      {% else %}
+      <div class="card-body text-muted">No results entered yet. Enter ballot results first.</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Generate break form -->
+  <div class="col-md-5">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-dark text-white fw-semibold"><i class="bi bi-diagram-3"></i> Generate Break Round</div>
+      <div class="card-body">
+        <form method="post" id="breakForm">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Round Name</label>
+            <input type="text" name="round_name" class="form-control" placeholder="e.g. Quarterfinals, Grand Final">
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Break Type</label>
+            {% for key, label, fixed_size, partial_info in break_options %}
+            <div class="form-check mt-1">
+              <input class="form-check-input break-type-radio" type="radio" name="break_type" value="{{ key }}"
+                     id="bt_{{ key }}" {% if key == 'quarters' %}checked{% endif %}>
+              <label class="form-check-label fw-semibold" for="bt_{{ key }}">
+                {{ label }}
+                {% if fixed_size %}<span class="text-muted fw-normal small">({{ fixed_size }} teams)</span>{% endif %}
+              </label>
+              {% if partial_info %}
+              <div class="partial-size-box mt-1 ms-3 d-none" data-key="{{ key }}">
+                <div class="input-group input-group-sm">
+                  <span class="input-group-text">Breaking teams</span>
+                  <input type="number" name="partial_size_{{ key }}" class="form-control"
+                         min="{{ partial_info.min }}" max="{{ partial_info.max }}" step="2"
+                         placeholder="{{ partial_info.hint }}">
+                </div>
+                <div class="form-text">{{ partial_info.hint }}</div>
+              </div>
+              {% endif %}
+            </div>
+            {% endfor %}
+          </div>
+          <div class="mb-3 d-none" id="customSizeBox">
+            <label class="form-label fw-semibold">Custom Break Size</label>
+            <input type="number" name="custom_size" class="form-control" min="4" step="4" placeholder="Multiple of 4">
+            <div class="form-text">e.g. 24 = 6 rooms, 32 = 8 rooms</div>
+          </div>
+          {% if standings %}
+          <button type="submit" class="btn btn-success w-100 mt-2">
+            <i class="bi bi-play-fill"></i> Generate Break Round
+          </button>
+          {% else %}
+          <div class="alert alert-warning py-2 small mb-0">Enter ballot results before generating a break.</div>
+          {% endif %}
+        </form>
+      </div>
+    </div>
+
+    {% if prelim_rounds %}
+    <div class="card border-0 shadow-sm mt-3">
+      <div class="card-header bg-light fw-semibold small"><i class="bi bi-info-circle"></i> Tiebreaker Rules</div>
+      <div class="card-body small text-muted">
+        <ol class="mb-0">
+          <li>Total points from preliminary rounds</li>
+          <li>Total speaker score (all prelim rounds)</li>
+          <li>Number of 1st-place finishes</li>
+        </ol>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- SECTION 2: Manage each elimination round (teams + judge break)    -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+{% if break_round_data %}
+<h4 class="fw-bold mb-3 mt-2"><i class="bi bi-diagram-3-fill"></i> Elimination Rounds — Judge Break</h4>
+<p class="text-muted small mb-4">
+  For each out-round, select which judges advance. <strong>3 judges per room</strong> is the recommended minimum (chair + 2 panellists).
+  You can pick any number — there is no cap. <strong>Only selected judges appear in the draw editor for that round.</strong>
+</p>
+
+{% for brd in break_round_data %}
+<div class="card border-0 shadow-sm mb-4">
+
+  <!-- Round header -->
+  <div class="card-header bg-dark text-white py-2">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <div class="fw-semibold fs-6">
+        {% if brd.prev_round %}
+          <i class="bi bi-trophy"></i> {{ brd.round.name }}
+        {% else %}
+          <i class="bi bi-person-check-fill"></i> Breaking Judges
+          <span class="fw-normal text-white-50 small ms-1">({{ brd.round.name }})</span>
+        {% endif %}
+      </div>
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        <span class="small text-white-50">
+          {{ brd.num_rooms }} room{{ brd.num_rooms|pluralize }} &rarr; min {{ brd.recommended }} judges (3 &times; {{ brd.num_rooms }})
+        </span>
+        <span class="badge bg-{% if brd.breaking_count >= brd.recommended %}success{% elif brd.breaking_count > 0 %}warning text-dark{% else %}secondary{% endif %}"
+              id="badge-{{ brd.round.pk }}">
+          {{ brd.breaking_count }} judge{{ brd.breaking_count|pluralize }} selected
+        </span>
+        <a href="{% url 'draw_view' slug=tournament.slug round_seq=brd.round.seq %}"
+           class="btn btn-sm btn-outline-light">
+          <i class="bi bi-diagram-2"></i> View Draw
+        </a>
+        <!-- CRUD controls -->
+        <button type="button" class="btn btn-sm btn-outline-light"
+                data-bs-toggle="collapse" data-bs-target="#rename-{{ brd.round.pk }}"
+                title="Rename this round">
+          <i class="bi bi-pencil"></i>
+        </button>
+        <a href="{% url 'round_edit' slug=tournament.slug round_seq=brd.round.seq %}?next=break_setup"
+           class="btn btn-sm btn-outline-warning" title="Full edit (all round settings)">
+          <i class="bi bi-gear"></i>
+        </a>
+        <button type="button" class="btn btn-sm btn-outline-danger"
+                data-bs-toggle="modal" data-bs-target="#del-{{ brd.round.pk }}"
+                title="Delete this round">
+          <i class="bi bi-trash"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Inline rename form (collapsed) -->
+  <div class="collapse" id="rename-{{ brd.round.pk }}">
+    <div class="card-body bg-light border-bottom py-2">
+      <form method="post" action="{% url 'round_rename' slug=tournament.slug round_seq=brd.round.seq %}">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="break_setup">
+        <div class="input-group input-group-sm">
+          <span class="input-group-text"><i class="bi bi-pencil"></i> Rename</span>
+          <input type="text" name="name" class="form-control" value="{{ brd.round.name }}" required placeholder="New round name">
+          <button type="submit" class="btn btn-success">Save</button>
+          <button type="button" class="btn btn-outline-secondary"
+                  data-bs-toggle="collapse" data-bs-target="#rename-{{ brd.round.pk }}">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="card-body pb-3">
+
+    <!-- Teams in this round -->
+    {% if brd.teams_in_round %}
+    <div class="mb-3">
+      <div class="fw-semibold small text-muted mb-1"><i class="bi bi-people-fill"></i> Teams in {{ brd.round.name }} ({{ brd.teams_in_round|length }})</div>
+      <div class="d-flex flex-wrap gap-1">
+        {% for adt in brd.teams_in_round %}
+        <span class="badge fw-normal
+          {% if adt.position == 'OG' %}bg-primary
+          {% elif adt.position == 'OO' %}bg-danger
+          {% elif adt.position == 'CG' %}bg-success
+          {% else %}bg-warning text-dark{% endif %}">
+          {{ adt.position }}: {{ adt.team.name }}
+          {% if adt.rank %}
+            <span class="opacity-75 ms-1">
+              {% if adt.rank == 1 %}&#9650;{% elif adt.rank == 2 %}&#9651;{% elif adt.rank == 3 %}&#9660;{% else %}&#9661;{% endif %}
+            </span>
+          {% endif %}
+        </span>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <form method="post" id="judge-break-form-{{ brd.round.pk }}">
+      {% csrf_token %}
+      <input type="hidden" name="save_judge_break" value="1">
+      <input type="hidden" name="judge_break_round" value="{{ brd.round.pk }}">
+
+      <!-- Pool source note for rounds after the first break -->
+      {% if brd.prev_round %}
+      <div class="alert {% if brd.pool_size == 0 %}alert-warning{% else %}alert-info{% endif %} py-2 mb-2 small">
+        <i class="bi bi-filter-circle-fill"></i>
+        {% if brd.pool_size == 0 %}
+          <span class="fw-semibold">No breaking judges saved for {{ brd.prev_round.name }} yet.</span>
+          Save a judge break for that round first, then return here to select who advances to <strong>{{ brd.round.name }}</strong>.
+        {% else %}
+          Showing only the <strong>{{ brd.pool_size }} judge{{ brd.pool_size|pluralize }}</strong>
+          who broke to <strong>{{ brd.round.name }}</strong>.
+        {% endif %}
+      </div>
+      {% endif %}
+
+      <!-- Toolbar -->
+      <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-sm btn-outline-primary"
+                  onclick="selectTop({{ brd.round.pk }}, {{ brd.recommended }})">
+            <i class="bi bi-check2-square"></i> Select Top {{ brd.recommended }}
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-secondary"
+                  onclick="selectAll({{ brd.round.pk }})">
+            <i class="bi bi-check-all"></i> Select All
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-danger"
+                  onclick="selectNone({{ brd.round.pk }})">
+            <i class="bi bi-x-square"></i> Clear
+          </button>
+        </div>
+        <button type="submit" class="btn btn-success btn-sm">
+          <i class="bi bi-floppy"></i> Save Breaking Judges
+        </button>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th style="width:44px" class="text-center">Break?</th>
+              <th class="text-center" style="width:50px">Rank</th>
+              <th>Judge</th>
+              <th>Institution</th>
+              <th class="text-center">Type</th>
+              <th class="text-center">Avg Score</th>
+              <th class="text-center">Responses</th>
+              <th class="text-center">Base Score</th>
+            </tr>
+          </thead>
+          <tbody id="judge-tbody-{{ brd.round.pk }}">
+            {% for row in brd.judge_rows %}
+            <tr class="{% if row.is_breaking %}table-success{% endif %}"
+                id="row-{{ brd.round.pk }}-{{ row.adj.pk }}">
+              <td class="text-center">
+                <input class="form-check-input fs-5 adj-check-{{ brd.round.pk }}"
+                       type="checkbox" name="breaking_adj" value="{{ row.adj.pk }}"
+                       {% if row.is_breaking %}checked{% endif %}
+                       onchange="onCheck({{ brd.round.pk }}, {{ row.adj.pk }}, this.checked)">
+              </td>
+              <td class="text-center fw-bold">
+                {% if row.rank %}{% if row.rank == 1 %}<span class="text-warning">&#9733;</span>{% endif %}{{ row.rank }}
+                {% else %}<span class="text-muted">—</span>{% endif %}
+              </td>
+              <td class="fw-semibold">{{ row.adj.name }}</td>
+              <td class="small text-muted">{{ row.adj.institution.name|default:"—" }}</td>
+              <td class="text-center">
+                {% if row.adj.adj_type == 'C' %}<span class="badge bg-danger">CAP</span>
+                {% elif row.adj.adj_type == 'I' %}<span class="badge bg-primary">Indep.</span>
+                {% elif row.adj.adj_type == 'S' %}<span class="badge bg-secondary">School</span>
+                {% else %}<span class="badge bg-warning text-dark">Trainee</span>{% endif %}
+              </td>
+              <td class="text-center">
+                {% if row.avg %}
+                <span class="badge bg-{% if row.avg >= 8 %}success{% elif row.avg >= 6 %}primary{% elif row.avg >= 4 %}warning text-dark{% else %}danger{% endif %}">
+                  {{ row.avg }}/10
+                </span>
+                {% else %}<span class="text-muted small">—</span>{% endif %}
+              </td>
+              <td class="text-center small">{% if row.count %}{{ row.count }}{% else %}—{% endif %}</td>
+              <td class="text-center small">{{ row.adj.base_score }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="8" class="text-center text-muted py-4">No adjudicators registered.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </form>
+  </div>
+
+  <!-- Results section — collapsible, shown below the judge table -->
+  {% if brd.has_any_results %}
+  <div class="card-body border-top pt-2 pb-3">
+    <button class="btn btn-sm btn-outline-secondary mb-2" type="button"
+            data-bs-toggle="collapse" data-bs-target="#results-{{ brd.round.pk }}"
+            aria-expanded="false">
+      <i class="bi bi-bar-chart-steps"></i> View Round Results
+      <span class="badge bg-secondary ms-1">Admin only</span>
+    </button>
+
+    <div class="collapse" id="results-{{ brd.round.pk }}">
+      <div class="row g-2 mt-1">
+        {% for rd in brd.result_debates %}
+        <div class="col-md-6">
+          <div class="border rounded p-2 small {% if rd.confirmed %}bg-white{% else %}bg-light{% endif %}">
+            <div class="fw-semibold text-muted mb-1">
+              {% if rd.debate.venue %}{{ rd.debate.venue.name }}{% else %}Room {{ rd.debate.room_rank }}{% endif %}
+              {% if not rd.confirmed %}<span class="text-warning ms-1"><i class="bi bi-hourglass"></i> No results</span>{% endif %}
+            </div>
+            {% for dt in rd.teams %}
+            <div class="d-flex justify-content-between align-items-center py-1 {% if not forloop.last %}border-bottom{% endif %}">
+              <div>
+                <span class="badge me-1
+                  {% if dt.rank == 1 %}bg-warning text-dark{% elif dt.rank == 2 %}bg-success{% elif dt.rank == 3 %}bg-secondary{% else %}bg-danger{% endif %}">
+                  {% if dt.rank %}{% if brd.is_finals %}{% if dt.rank == 1 %}GW{% elif dt.rank == 2 %}1st R-up{% elif dt.rank == 3 %}2nd R-up{% elif dt.rank == 4 %}3rd R-up{% endif %}{% else %}{% if dt.rank == 1 %}1st{% elif dt.rank == 2 %}2nd{% elif dt.rank == 3 %}3rd{% elif dt.rank == 4 %}4th{% endif %}{% endif %}{% else %}—{% endif %}
+                </span>
+                <span class="fw-semibold">{{ dt.team.name }}</span>
+                {% if dt.team.institution %}<span class="text-muted ms-1">· {{ dt.team.institution.code|default:dt.team.institution.name }}</span>{% endif %}
+              </div>
+              <div class="text-end">
+                <span class="badge bg-light text-dark border">{{ dt.position }}</span>
+                {% if dt.points is not None %}<span class="text-muted ms-1">{{ dt.points }}pts</span>{% endif %}
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+      {% if not brd.is_finals %}
+      <!-- Team advancement -->
+      <div class="mt-3 row g-2">
+        {% if brd.advancing_teams %}
+        <div class="col-md-6">
+          <div class="p-2 bg-success bg-opacity-10 border border-success rounded small">
+            <div class="fw-semibold text-success mb-1"><i class="bi bi-arrow-up-circle-fill"></i> Teams Advancing{% if brd.next_round %} → {{ brd.next_round.name }}{% endif %}</div>
+            {% for team in brd.advancing_teams %}
+            <div>{{ team.name }}</div>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+        {% if brd.eliminated_teams %}
+        <div class="col-md-6">
+          <div class="p-2 bg-danger bg-opacity-10 border border-danger rounded small">
+            <div class="fw-semibold text-danger mb-1"><i class="bi bi-x-circle-fill"></i> Teams Eliminated</div>
+            {% for team in brd.eliminated_teams %}
+            <div>{{ team.name }}</div>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- Judge advancement (only shown once next round's judge break has been saved) -->
+      {% if brd.advancing_judges or brd.eliminated_judges %}
+      <div class="mt-2 row g-2">
+        {% if brd.advancing_judges %}
+        <div class="col-md-6">
+          <div class="p-2 bg-primary bg-opacity-10 border border-primary rounded small">
+            <div class="fw-semibold text-primary mb-1">
+              <i class="bi bi-person-check-fill"></i> Judges Advancing → {{ brd.next_round.name }}
+            </div>
+            {% for adj in brd.advancing_judges %}
+            <div class="d-flex align-items-center gap-1 py-1 {% if not forloop.last %}border-bottom{% endif %}">
+              <span class="fw-semibold">{{ adj.name }}</span>
+              {% if adj.adj_type == 'C' %}<span class="badge bg-danger" style="font-size:.6rem;">CAP</span>
+              {% elif adj.adj_type == 'I' %}<span class="badge bg-primary" style="font-size:.6rem;">IA</span>
+              {% elif adj.adj_type == 'S' %}<span class="badge bg-secondary" style="font-size:.6rem;">School</span>{% endif %}
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+        {% if brd.eliminated_judges %}
+        <div class="col-md-6">
+          <div class="p-2 bg-warning bg-opacity-10 border border-warning rounded small">
+            <div class="fw-semibold text-warning mb-1">
+              <i class="bi bi-person-x-fill"></i> Judges Not Advancing
+            </div>
+            {% for adj in brd.eliminated_judges %}
+            <div class="d-flex align-items-center gap-1 py-1 {% if not forloop.last %}border-bottom{% endif %}">
+              <span class="fw-semibold">{{ adj.name }}</span>
+              {% if adj.adj_type == 'C' %}<span class="badge bg-danger" style="font-size:.6rem;">CAP</span>
+              {% elif adj.adj_type == 'I' %}<span class="badge bg-primary" style="font-size:.6rem;">IA</span>
+              {% elif adj.adj_type == 'S' %}<span class="badge bg-secondary" style="font-size:.6rem;">School</span>{% endif %}
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+      </div>
+      {% elif brd.next_round and brd.breaking_count > 0 %}
+      <div class="mt-2 alert alert-info py-2 small mb-0">
+        <i class="bi bi-info-circle"></i>
+        Judge advancement will appear here once you save the judge break for <strong>{{ brd.next_round.name }}</strong>.
+      </div>
+      {% endif %}
+      {% else %}
+      <!-- Grand Final standings -->
+      <div class="mt-3">
+        {% for rd in brd.result_debates %}{% for dt in rd.teams %}
+        {% if dt.rank == 1 %}
+        <div class="p-3 bg-warning bg-opacity-10 border border-warning rounded text-center mb-2">
+          <div class="display-6">&#127942;</div>
+          <div class="fw-bold fs-5">{{ dt.team.name }}</div>
+          <div class="text-muted small fw-semibold">Grand Winner</div>
+          {% if dt.team.institution %}<div class="text-muted" style="font-size:.8rem;">{{ dt.team.institution.name }}</div>{% endif %}
+        </div>
+        {% elif dt.rank == 2 %}
+        <div class="p-2 border rounded d-flex align-items-center gap-2 mb-1 small">
+          <span class="badge bg-secondary fs-6">2nd</span>
+          <div><div class="fw-semibold">{{ dt.team.name }}</div><div class="text-muted" style="font-size:.75rem;">First Runner-up{% if dt.team.institution %} · {{ dt.team.institution.name }}{% endif %}</div></div>
+        </div>
+        {% elif dt.rank == 3 %}
+        <div class="p-2 border rounded d-flex align-items-center gap-2 mb-1 small">
+          <span class="badge bg-secondary fs-6">3rd</span>
+          <div><div class="fw-semibold">{{ dt.team.name }}</div><div class="text-muted" style="font-size:.75rem;">Second Runner-up{% if dt.team.institution %} · {{ dt.team.institution.name }}{% endif %}</div></div>
+        </div>
+        {% elif dt.rank == 4 %}
+        <div class="p-2 border rounded d-flex align-items-center gap-2 mb-1 small">
+          <span class="badge bg-light text-dark border fs-6">4th</span>
+          <div><div class="fw-semibold">{{ dt.team.name }}</div><div class="text-muted" style="font-size:.75rem;">Third Runner-up{% if dt.team.institution %} · {{ dt.team.institution.name }}{% endif %}</div></div>
+        </div>
+        {% endif %}
+        {% endfor %}{% endfor %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+{% endfor %}
+
+{% else %}
+<div class="card border-0 shadow-sm mt-2">
+  <div class="card-body text-center text-muted py-5">
+    <i class="bi bi-person-badge display-5 d-block mb-2 opacity-25"></i>
+    <p class="mb-0">
+      No elimination rounds yet.<br>
+      Use the <strong>Generate Break Round</strong> form above — the judge break selection will appear here for each out-round.
+    </p>
+  </div>
+</div>
+{% endif %}
+
+<!-- Delete confirmation modals for each break round -->
+{% for brd in break_round_data %}
+<div class="modal fade" id="del-{{ brd.round.pk }}" tabindex="-1" aria-labelledby="delLabel-{{ brd.round.pk }}" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title" id="delLabel-{{ brd.round.pk }}"><i class="bi bi-trash"></i> Delete Round</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p>Delete <strong>{{ brd.round.name }}</strong>?</p>
+        <p class="text-muted small mb-0">This permanently removes all debates, ballots, speaker scores, and judge break records for this round. This action cannot be undone.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <form method="post" action="{% url 'round_delete' slug=tournament.slug round_seq=brd.round.seq %}">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="break_setup">
+          <button type="submit" class="btn btn-danger"><i class="bi bi-trash"></i> Delete</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endfor %}
+
+{% endblock %}
+{% block extra_js %}
+<script>
+/* ── Break type radio toggle ─────────────────────────────────────── */
+(function () {
+  var radios = document.querySelectorAll(".break-type-radio");
+  var customBox = document.getElementById("customSizeBox");
+  var partialBoxes = document.querySelectorAll(".partial-size-box");
+
+  function update() {
+    var sel = document.querySelector(".break-type-radio:checked");
+    var val = sel ? sel.value : "";
+    customBox.classList.toggle("d-none", val !== "custom");
+    partialBoxes.forEach(function (box) {
+      var show = box.dataset.key === val;
+      box.classList.toggle("d-none", !show);
+      var input = box.querySelector("input[type=number]");
+      if (input) input.required = show;
+    });
+  }
+
+  radios.forEach(function (r) { r.addEventListener("change", update); });
+  update();
+})();
+
+/* ── Judge break checkbox helpers ───────────────────────────────── */
+function _checkboxes(roundPk) {
+  return Array.from(document.querySelectorAll(".adj-check-" + roundPk));
+}
+
+function _updateBadge(roundPk) {
+  var n = _checkboxes(roundPk).filter(function (cb) { return cb.checked; }).length;
+  var badge = document.getElementById("badge-" + roundPk);
+  if (badge) badge.textContent = n + " judge" + (n === 1 ? "" : "s") + " selected";
+}
+
+function onCheck(roundPk, adjPk, checked) {
+  var row = document.getElementById("row-" + roundPk + "-" + adjPk);
+  if (row) row.classList.toggle("table-success", checked);
+  _updateBadge(roundPk);
+}
+
+function selectTop(roundPk, n) {
+  _checkboxes(roundPk).forEach(function (cb, i) {
+    cb.checked = i < n;
+    var row = document.getElementById("row-" + roundPk + "-" + cb.value);
+    if (row) row.classList.toggle("table-success", i < n);
+  });
+  _updateBadge(roundPk);
+}
+
+function selectAll(roundPk) {
+  _checkboxes(roundPk).forEach(function (cb) {
+    cb.checked = true;
+    var row = document.getElementById("row-" + roundPk + "-" + cb.value);
+    if (row) row.classList.add("table-success");
+  });
+  _updateBadge(roundPk);
+}
+
+function selectNone(roundPk) {
+  _checkboxes(roundPk).forEach(function (cb) {
+    cb.checked = false;
+    var row = document.getElementById("row-" + roundPk + "-" + cb.value);
+    if (row) row.classList.remove("table-success");
+  });
+  _updateBadge(roundPk);
+}
+</script>
+{% endblock %}

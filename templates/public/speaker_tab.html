@@ -1,24 +1,62 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 {% block title %}Speaker Tab — {{ tournament.name }}{% endblock %}
 {% block content %}
-<h3 class="fw-bold mb-4"><i class="bi bi-trophy"></i> Speaker Tab — {{ tournament.name }}</h3>
+<div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+  <div>
+    <h3 class="fw-bold mb-0"><i class="bi bi-trophy"></i> Speaker Tab</h3>
+    <span class="text-muted small">{{ tournament.name }}</span>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{% url 'public_team_tab' slug=tournament.slug %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-list-ol"></i> Team Tab</a>
+    <a href="{% url 'public_overview' slug=tournament.slug %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Back</a>
+  </div>
+</div>
+
 <div class="card border-0 shadow-sm">
   <div class="table-responsive">
-    <table class="table table-hover mb-0">
-      <thead class="table-dark"><tr><th>#</th><th>Speaker</th><th>Institution</th><th>Total</th><th>Average</th></tr></thead>
+    <table class="table table-hover table-sm mb-0 align-middle">
+      <thead class="table-dark">
+        <tr>
+          <th class="text-center" style="width:40px;">#</th>
+          <th><i class="bi bi-person-fill"></i> Speaker</th>
+          <th><i class="bi bi-people-fill"></i> Team</th>
+          {% for r in rounds %}
+          <th class="text-center" style="min-width:50px;">R{{ r.seq }}</th>
+          {% endfor %}
+          <th class="text-center fw-bold">Total</th>
+          <th class="text-center">Avg</th>
+          <th class="text-center">Stdev</th>
+          <th class="text-center">Trim</th>
+        </tr>
+      </thead>
       <tbody>
         {% for row in standings %}
-        <tr {% if forloop.counter <= 3 %}class="table-success"{% endif %}>
-          <td class="fw-bold">{{ row.rank }}</td>
+        <tr>
+          <td class="text-center fw-bold text-muted">{{ row.rank }}</td>
           <td class="fw-semibold">{{ row.speaker.name }}</td>
-          <td class="text-muted small">{{ row.speaker.institution.name|default:"—" }}</td>
-          <td class="fw-bold">{{ row.total_score|floatformat:2 }}</td>
-          <td>{{ row.average|floatformat:2 }}</td>
+          <td class="small text-muted">
+            {% for team in row.speaker.teams.all %}{{ team.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+          </td>
+          {% for r in rounds %}
+          <td class="text-center" style="min-width:44px;">
+            {% for seq, sc in row.scores_by_round.items %}{% if seq == r.seq %}
+              <span class="fw-semibold">{{ sc|floatformat:0 }}</span>
+            {% endif %}{% endfor %}
+          </td>
+          {% endfor %}
+          <td class="text-center fw-bold">{{ row.total_score|floatformat:0 }}</td>
+          <td class="text-center">{{ row.average|floatformat:2 }}</td>
+          <td class="text-center text-muted">{{ row.stdev }}</td>
+          <td class="text-center text-muted">{{ row.trimmed }}</td>
         </tr>
-        {% empty %}<tr><td colspan="5" class="text-center text-muted py-3">No results yet.</td></tr>
+        {% empty %}
+        <tr><td colspan="20" class="text-center text-muted py-4">No results yet.</td></tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
 </div>
+{% if standings %}
+<div class="mt-2 text-muted small">{{ standings|length }} speakers</div>
+{% endif %}
 {% endblock %}

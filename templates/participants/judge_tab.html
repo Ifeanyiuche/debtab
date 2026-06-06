@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block title %}Judge Power Rankings — {{ tournament.name }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h3 class="fw-bold mb-0"><i class="bi bi-person-badge"></i> Judge Power Rankings</h3>
+    <div class="text-muted small mt-1">Ranked by average feedback score (non-ignored responses only). {{ total_feedback }} total response{{ total_feedback|pluralize }} collected.</div>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{% url 'feedback_overview' slug=tournament.slug %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-chat-left-text"></i> Manage Feedback</a>
+    <a href="{% url 'adjudicator_list' slug=tournament.slug %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-list-ul"></i> All Judges</a>
+  </div>
+</div>
+
+<!-- Legend -->
+<div class="d-flex gap-3 mb-3 flex-wrap">
+  <span class="small"><span class="badge bg-success">4.0 – 5.0</span> Excellent</span>
+  <span class="small"><span class="badge bg-primary">3.0 – 3.9</span> Good</span>
+  <span class="small"><span class="badge bg-warning text-dark">2.0 – 2.9</span> Fair</span>
+  <span class="small"><span class="badge bg-danger">1.0 – 1.9</span> Poor</span>
+  <span class="small text-muted ms-2"><i class="bi bi-eye-slash"></i> Strikethrough = ignored response</span>
+</div>
+
+{% if rows %}
+<div class="card border-0 shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0 align-middle">
+      <thead class="table-dark">
+        <tr>
+          <th class="text-center" style="width:50px">Rank</th>
+          <th>Judge</th>
+          <th>Institution</th>
+          <th class="text-center">Type</th>
+          <th class="text-center">Rounds<br>Judged</th>
+          <th class="text-center">Feedback<br>Responses</th>
+          <th class="text-center">Avg Score</th>
+          <th class="text-center">High</th>
+          <th class="text-center">Low</th>
+          <th class="text-center" style="width:80px">Detail</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td class="text-center fw-bold fs-5">
+            {% if row.rank %}
+              {% if row.rank == 1 %}<span class="text-warning">&#9733;</span>{% endif %}
+              {{ row.rank }}
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td class="fw-semibold">{{ row.adj.name }}</td>
+          <td class="small text-muted">{{ row.adj.institution.name|default:"—" }}</td>
+          <td class="text-center">
+            {% if row.adj.adj_type == 'C' %}<span class="badge bg-danger">CAP</span>
+            {% elif row.adj.adj_type == 'I' %}<span class="badge bg-primary">Independent</span>
+            {% elif row.adj.adj_type == 'S' %}<span class="badge bg-secondary">School</span>
+            {% else %}<span class="badge bg-light text-dark border">Trainee</span>{% endif %}
+          </td>
+          <td class="text-center">{{ row.rounds_judged }}</td>
+          <td class="text-center">
+            {{ row.count }}
+            {% if row.all_feedback|length != row.count %}
+            <span class="text-muted small">({{ row.all_feedback|length }} total, {{ row.all_feedback|length|add:"-1"|add:"1" }})</span>
+            {% endif %}
+          </td>
+          <td class="text-center">
+            {% if row.avg %}
+            <span class="badge fs-6 bg-{% if row.avg >= 8 %}success{% elif row.avg >= 6 %}primary{% elif row.avg >= 4 %}warning text-dark{% else %}danger{% endif %}">
+              {{ row.avg }}
+            </span>
+            {% else %}
+            <span class="text-muted small">No feedback</span>
+            {% endif %}
+          </td>
+          <td class="text-center small">{% if row.high %}<span class="text-success fw-semibold">{{ row.high }}</span>{% else %}—{% endif %}</td>
+          <td class="text-center small">{% if row.low %}<span class="text-danger fw-semibold">{{ row.low }}</span>{% else %}—{% endif %}</td>
+          <td class="text-center">
+            {% if row.all_feedback %}
+            <button class="btn btn-outline-secondary btn-sm" type="button"
+                    data-bs-toggle="collapse" data-bs-target="#detail-{{ row.adj.pk }}">
+              <i class="bi bi-chevron-down"></i>
+            </button>
+            {% endif %}
+          </td>
+        </tr>
+        {% if row.all_feedback %}
+        <tr class="table-light">
+          <td colspan="10" class="p-0">
+            <div class="collapse" id="detail-{{ row.adj.pk }}">
+              <div class="px-4 py-3">
+                <div class="fw-semibold small text-muted mb-2">All feedback responses for {{ row.adj.name }}</div>
+                <table class="table table-sm table-bordered mb-0">
+                  <thead class="table-secondary">
+                    <tr>
+                      <th>Round</th>
+                      <th class="text-center">Score</th>
+                      <th>From</th>
+                      <th>Comments</th>
+                      <th class="text-center">Status</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for fb in row.all_feedback %}
+                    <tr {% if fb.ignored %}class="text-decoration-line-through text-muted"{% endif %}>
+                      <td class="small">{{ fb.debate.round.name }}</td>
+                      <td class="text-center">
+                        <span class="badge bg-{% if fb.score >= 8 %}success{% elif fb.score >= 6 %}primary{% elif fb.score >= 4 %}warning text-dark{% else %}danger{% endif %}">
+                          {{ fb.score }}/10
+                        </span>
+                      </td>
+                      <td class="small">{{ fb.source_display }}</td>
+                      <td class="small">{{ fb.comments|default:"—"|truncatechars:100 }}</td>
+                      <td class="text-center small">
+                        {% if fb.ignored %}
+                          <span class="badge bg-secondary"><i class="bi bi-eye-slash"></i> Ignored</span>
+                        {% else %}
+                          <span class="badge bg-success"><i class="bi bi-check2"></i> Active</span>
+                        {% endif %}
+                      </td>
+                      <td>
+                        <form method="post" action="{% url 'toggle_ignore_feedback' slug=tournament.slug feedback_id=fb.pk %}" class="d-inline">
+                          {% csrf_token %}
+                          <input type="hidden" name="next" value="{{ request.path }}">
+                          <button type="submit" class="btn btn-sm {% if fb.ignored %}btn-outline-success{% else %}btn-outline-warning{% endif %}" title="{% if fb.ignored %}Include in rankings{% else %}Ignore this response{% endif %}">
+                            {% if fb.ignored %}<i class="bi bi-eye"></i> Include{% else %}<i class="bi bi-eye-slash"></i> Ignore{% endif %}
+                          </button>
+                        </form>
+                      </td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </td>
+        </tr>
+        {% endif %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% else %}
+<div class="alert alert-info mt-3">
+  <i class="bi bi-info-circle"></i>
+  No adjudicators registered yet. <a href="{% url 'participant_register' slug=tournament.slug %}">Register participants</a> first.
+</div>
+{% endif %}
+{% endblock %}

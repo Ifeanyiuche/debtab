@@ -157,9 +157,42 @@ def team_delete(request, slug, pk):
 # ---------- Adjudicators ----------
 @login_required
 def adjudicator_list(request, slug):
+    from apps.feedback.models import AdjudicatorFeedback
+    from collections import defaultdict
+
     t = get_tournament(slug, request.user)
-    adjs = t.adjudicators.select_related("institution").order_by("name")
-    return render(request, "participants/adjudicators.html", {"tournament": t, "adjudicators": adjs})
+    adjs = list(t.adjudicators.select_related("institution").order_by("name"))
+
+    active_fb = list(
+        AdjudicatorFeedback.objects
+        .filter(adjudicator__tournament=t, ignored=False, source_adjudicator__isnull=True)
+        .values("adjudicator_id", "score")
+    )
+    scores_by_adj = defaultdict(list)
+    for fb in active_fb:
+        scores_by_adj[fb["adjudicator_id"]].append(fb["score"])
+
+    adj_rows = []
+    for adj in adjs:
+        scores = scores_by_adj[adj.pk]
+        avg = round(sum(scores) / len(scores), 2) if scores else None
+        adj_rows.append({"adj": adj, "avg_feedback": avg, "feedback_count": len(scores)})
+
+    # Assign ranks to those with feedback
+    ranked = sorted([r for r in adj_rows if r["avg_feedback"] is not None],
+                    key=lambda x: (-x["avg_feedback"], -x["feedback_count"]))
+    rank = 1
+    for i, row in enumerate(ranked):
+        if i > 0 and row["avg_feedback"] == ranked[i - 1]["avg_feedback"]:
+            row["rank"] = ranked[i - 1]["rank"]
+        else:
+            row["rank"] = rank
+        rank = i + 2
+    for row in adj_rows:
+        if "rank" not in row:
+            row["rank"] = None
+
+    return render(request, "participants/adjudicators.html", {"tournament": t, "adj_rows": adj_rows})
 
 
 @login_required
@@ -250,6 +283,7 @@ def participant_register(request, slug):
                 email=d.get("email", ""),
                 base_score=d.get("base_score") or 1.5,
                 independent=d.get("independent", False),
+                adj_type=d.get("adj_type", Adjudicator.TYPE_INDEPENDENT),
             )
             messages.success(request, f"Adjudicator '{obj.name}' registered successfully.")
 
@@ -273,4 +307,158 @@ def participant_list(request, slug):
         "speakers": speakers,
         "adjudicators": adjudicators,
         "teams": teams,
+    })
+
+
+@login_required
+def team_detail(request, slug, team_pk):
+    """Team activity log — per-round history for one team."""
+    from apps.draw.models import DebateTeam
+    t = get_tournament(slug, request.user)
+    team = get_object_or_404(Team, pk=team_pk, tournament=t)
+    debate_teams = (
+        DebateTeam.objects.filter(team=team)
+        .select_related("debate__round", "debate__venue")
+        .prefetch_related("speaker_scores__speaker", "debate__debate_adjudicators__adjudicator")
+        .order_by("debate__round__seq")
+    )
+    history = []
+    for dt in debate_teams:
+        scores = list(dt.speaker_scores.filter(ballot__confirmed=True).select_related("speaker"))
+        history.append({
+            "round": dt.debate.round,
+            "debate": dt.debate,
+            "position": dt.position,
+            "position_label": dt.position_label,
+            "rank": dt.rank,
+            "points": dt.points,
+            "total_score": dt.total_score,
+            "scores": scores,
+        })
+    return render(request, "participants/team_detail.html", {
+        "tournament": t,
+        "team": team,
+        "history": history,
+    })
+
+
+@login_required
+def promote_adjudicator(request, slug, pk):
+    """Tab Master only: promote trainee → panellist, or panellist → independent chair-eligible."""
+    from django.views.decorators.http import require_POST
+    t = get_tournament(slug, request.user)
+    adj = get_object_or_404(Adjudicator, pk=pk, tournament=t)
+
+    if request.method != "POST":
+        return redirect("adjudicator_list", slug=t.slug)
+
+    target = request.POST.get("promote_to", "")
+    label_map = {
+        Adjudicator.TYPE_CAP: "CAP",
+        Adjudicator.TYPE_INDEPENDENT: "Independent (IA)",
+        Adjudicator.TYPE_SCHOOL: "School Judge",
+        Adjudicator.TYPE_NEW: "Trainee",
+    }
+    valid_promotions = {
+        Adjudicator.TYPE_NEW: [Adjudicator.TYPE_SCHOOL, Adjudicator.TYPE_INDEPENDENT, Adjudicator.TYPE_CAP],
+        Adjudicator.TYPE_SCHOOL: [Adjudicator.TYPE_INDEPENDENT, Adjudicator.TYPE_CAP, Adjudicator.TYPE_NEW],
+        Adjudicator.TYPE_INDEPENDENT: [Adjudicator.TYPE_CAP, Adjudicator.TYPE_SCHOOL, Adjudicator.TYPE_NEW],
+        Adjudicator.TYPE_CAP: [Adjudicator.TYPE_INDEPENDENT, Adjudicator.TYPE_SCHOOL, Adjudicator.TYPE_NEW],
+    }
+    if target not in valid_promotions.get(adj.adj_type, []):
+        messages.error(request, "Invalid promotion target.")
+        return redirect("adjudicator_list", slug=t.slug)
+
+    old_label = label_map.get(adj.adj_type, adj.adj_type)
+    adj.adj_type = target
+    adj.save(update_fields=["adj_type"])
+    new_label = label_map.get(target, target)
+    messages.success(request, f"{adj.name} changed from {old_label} → {new_label}.")
+    return redirect("adjudicator_list", slug=t.slug)
+
+
+@login_required
+def judge_tab(request, slug):
+    """Power ranking of adjudicators based on non-ignored feedback scores."""
+    from apps.feedback.models import AdjudicatorFeedback
+    from collections import defaultdict
+
+    t = get_tournament(slug, request.user)
+
+    adjs = list(
+        t.adjudicators.filter(active=True)
+        .select_related("institution")
+        .prefetch_related("debate_adjudicators")
+        .order_by("name")
+    )
+
+    # All feedback for this tournament (both ignored and not — tab master sees all)
+    all_feedback = list(
+        AdjudicatorFeedback.objects
+        .filter(adjudicator__tournament=t)
+        .select_related("adjudicator", "source_speaker", "source_adjudicator", "debate__round")
+        .order_by("debate__round__seq", "-submitted_at")
+    )
+
+    fb_by_adj = defaultdict(list)
+    for fb in all_feedback:
+        fb_by_adj[fb.adjudicator.pk].append(fb)
+
+    rows = []
+    for adj in adjs:
+        all_fbs = fb_by_adj[adj.pk]
+        # Judge-on-judge feedback shown in log (for CAP) but excluded from power ranking
+        active_fbs = [f for f in all_fbs if not f.ignored and not f.source_adjudicator_id]
+        count = len(active_fbs)
+        avg = round(sum(f.score for f in active_fbs) / count, 2) if count > 0 else None
+        high = max(f.score for f in active_fbs) if active_fbs else None
+        low = min(f.score for f in active_fbs) if active_fbs else None
+        rounds_judged = adj.debate_adjudicators.count()
+        rows.append({
+            "adj": adj,
+            "all_feedback": all_fbs,
+            "count": count,
+            "avg": avg,
+            "high": high,
+            "low": low,
+            "rounds_judged": rounds_judged,
+        })
+
+    ranked = sorted(
+        [r for r in rows if r["avg"] is not None],
+        key=lambda x: (-x["avg"], -x["count"], x["adj"].name),
+    )
+    unranked = sorted(
+        [r for r in rows if r["avg"] is None],
+        key=lambda x: x["adj"].name,
+    )
+
+    # Competition-style ranks: ties share a rank, next rank skips
+    current_rank = 1
+    for i, row in enumerate(ranked):
+        if i > 0 and row["avg"] == ranked[i - 1]["avg"]:
+            row["rank"] = ranked[i - 1]["rank"]
+        else:
+            row["rank"] = current_rank
+        current_rank = i + 2
+
+    for row in unranked:
+        row["rank"] = None
+
+    return render(request, "participants/judge_tab.html", {
+        "tournament": t,
+        "rows": ranked + unranked,
+        "total_feedback": len(all_feedback),
+    })
+
+
+def public_participant_list(request, slug):
+    """Public participant list — teams and their speakers."""
+    t = get_object_or_404(Tournament, slug=slug)
+    teams = t.teams.filter(active=True, is_swing=False).prefetch_related("speakers").select_related("institution").order_by("name")
+    adjudicators = t.adjudicators.filter(active=True).select_related("institution").order_by("name")
+    return render(request, "public/participants.html", {
+        "tournament": t,
+        "teams": teams,
+        "adjudicators": adjudicators,
     })

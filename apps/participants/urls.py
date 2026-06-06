@@ -31,4 +31,8 @@ urlpatterns = [
     path("participants/register/", views.participant_register, name="participant_register"),
     path("participants/batch/", batch_upload, name="batch_upload"),
     path("participants/<int:pk>/manage/", participant_manage, name="participant_manage"),
+    path("teams/<int:team_pk>/", views.team_detail, name="team_detail"),
+    path("public/participants/", views.public_participant_list, name="public_participant_list"),
+    path("participants/adjudicators/rankings/", views.judge_tab, name="judge_tab"),
+    path("participants/adjudicators/<int:pk>/promote/", views.promote_adjudicator, name="promote_adjudicator"),
 ]

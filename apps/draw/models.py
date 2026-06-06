@@ -83,6 +83,19 @@ class DebateTeam(models.Model):
         return dict(self.POSITION_CHOICES).get(self.position, self.position)
 
 
+class JudgeBreak(models.Model):
+    """Records which adjudicators are selected to break in an elimination round."""
+    round = models.ForeignKey(Round, on_delete=models.CASCADE, related_name="judge_breaks")
+    adjudicator = models.ForeignKey(Adjudicator, on_delete=models.CASCADE, related_name="judge_breaks")
+
+    class Meta:
+        unique_together = [("round", "adjudicator")]
+        ordering = ["round", "adjudicator__name"]
+
+    def __str__(self):
+        return f"{self.adjudicator.name} breaking in {self.round.name}"
+
+
 class DebateAdjudicator(models.Model):
     ROLE_CHAIR = 'C'
     ROLE_PANEL = 'P'

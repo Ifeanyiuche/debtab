@@ -1,15 +1,174 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 {% load crispy_forms_tags %}
 {% block title %}Add Round — {{ tournament.name }}{% endblock %}
 {% block content %}
 <div class="row justify-content-center">
-  <div class="col-lg-6">
+  <div class="col-lg-7">
     <h2 class="fw-bold mb-4"><i class="bi bi-plus-circle text-primary"></i> Add Round</h2>
-    <div class="card border-0 shadow-sm">
-      <div class="card-body p-4">
-        <form method="post">{% csrf_token %}{{ form|crispy }}<button type="submit" class="btn btn-primary mt-2">Add Round</button> <a href="{% url 'tournament_overview' slug=tournament.slug %}" class="btn btn-outline-secondary mt-2">Cancel</a></form>
+
+    <!-- Quick Templates -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-dark text-white fw-semibold">
+        <i class="bi bi-lightning-fill text-warning"></i> Quick Templates
+        <span class="fw-normal text-white-50 small ms-2">Click to pre-fill the form below</span>
+      </div>
+      <div class="card-body">
+        <div class="row g-2">
+
+          <!-- Prelim -->
+          <div class="col-6 col-md-4">
+            <button type="button" class="btn btn-outline-secondary w-100 tpl-btn"
+              data-name="Round {{ next_seq }}"
+              data-abbr="R{{ next_seq }}"
+              data-draw="P"
+              data-break="false"
+              data-silent="false">
+              <i class="bi bi-diagram-3 d-block fs-4 mb-1"></i>
+              <span class="fw-semibold">Preliminary Round</span>
+              <div class="text-muted small">Power Paired</div>
+            </button>
+          </div>
+
+          <!-- Octofinals -->
+          <div class="col-6 col-md-4">
+            <button type="button" class="btn btn-outline-info w-100 tpl-btn"
+              data-name="Octofinals"
+              data-abbr="OF"
+              data-draw="E"
+              data-break="true"
+              data-silent="false">
+              <i class="bi bi-trophy d-block fs-4 mb-1"></i>
+              <span class="fw-semibold">Octofinals</span>
+              <div class="text-muted small">Elimination · 32 teams</div>
+            </button>
+          </div>
+
+          <!-- Quarterfinals -->
+          <div class="col-6 col-md-4">
+            <button type="button" class="btn btn-outline-primary w-100 tpl-btn"
+              data-name="Quarterfinals"
+              data-abbr="QF"
+              data-draw="E"
+              data-break="true"
+              data-silent="false">
+              <i class="bi bi-trophy d-block fs-4 mb-1"></i>
+              <span class="fw-semibold">Quarterfinals</span>
+              <div class="text-muted small">Elimination · 16 teams</div>
+            </button>
+          </div>
+
+          <!-- Semifinals -->
+          <div class="col-6 col-md-4">
+            <button type="button" class="btn btn-outline-warning w-100 tpl-btn"
+              data-name="Semifinals"
+              data-abbr="SF"
+              data-draw="E"
+              data-break="true"
+              data-silent="false">
+              <i class="bi bi-trophy-fill d-block fs-4 mb-1"></i>
+              <span class="fw-semibold">Semifinals</span>
+              <div class="text-muted small">Elimination · 8 teams</div>
+            </button>
+          </div>
+
+          <!-- Grand Final -->
+          <div class="col-6 col-md-4">
+            <button type="button" class="btn btn-outline-danger w-100 tpl-btn"
+              data-name="Grand Final"
+              data-abbr="GF"
+              data-draw="E"
+              data-break="true"
+              data-silent="false">
+              <i class="bi bi-star-fill d-block fs-4 mb-1 text-warning"></i>
+              <span class="fw-semibold">Grand Final</span>
+              <div class="text-muted small">Elimination · 4 teams</div>
+            </button>
+          </div>
+
+          <!-- Silent -->
+          <div class="col-6 col-md-4">
+            <button type="button" class="btn btn-outline-dark w-100 tpl-btn"
+              data-name="Round {{ next_seq }} (Silent)"
+              data-abbr="R{{ next_seq }}S"
+              data-draw="P"
+              data-break="false"
+              data-silent="true">
+              <i class="bi bi-eye-slash d-block fs-4 mb-1"></i>
+              <span class="fw-semibold">Silent Round</span>
+              <div class="text-muted small">Power Paired · Hidden tab</div>
+            </button>
+          </div>
+
+        </div>
       </div>
     </div>
+
+    <!-- Full Form -->
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-light fw-semibold">
+        <i class="bi bi-pencil-square"></i> Round Details
+      </div>
+      <div class="card-body p-4">
+        <form method="post" id="roundForm">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{{ next }}">
+          {{ form|crispy }}
+          <div class="d-flex gap-2 mt-3">
+            <button type="submit" class="btn btn-primary"><i class="bi bi-plus-circle"></i> Add Round</button>
+            <a href="{% url 'tournament_overview' slug=tournament.slug %}" class="btn btn-outline-secondary">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  var DRAW_LABELS = { P: "Power Paired", R: "Random", F: "Fold", E: "Elimination" };
+
+  document.querySelectorAll(".tpl-btn").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var d = btn.dataset;
+
+      // Name
+      var nameEl = document.getElementById("id_name");
+      if (nameEl) nameEl.value = d.name;
+
+      // Abbreviation
+      var abbrEl = document.getElementById("id_abbreviation");
+      if (abbrEl) abbrEl.value = d.abbr;
+
+      // Draw type
+      var drawEl = document.getElementById("id_draw_type");
+      if (drawEl) {
+        for (var i = 0; i < drawEl.options.length; i++) {
+          if (drawEl.options[i].value === d.draw) {
+            drawEl.selectedIndex = i;
+            break;
+          }
+        }
+      }
+
+      // is_break_round
+      var breakEl = document.getElementById("id_is_break_round");
+      if (breakEl) breakEl.checked = (d.break === "true");
+
+      // silent
+      var silentEl = document.getElementById("id_silent");
+      if (silentEl) silentEl.checked = (d.silent === "true");
+
+      // Highlight active button
+      document.querySelectorAll(".tpl-btn").forEach(function (b) { b.classList.remove("active"); });
+      btn.classList.add("active");
+
+      // Scroll to form
+      document.getElementById("roundForm").scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  });
+})();
+</script>
 {% endblock %}

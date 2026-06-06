@@ -1,68 +1,116 @@
 {% extends "base.html" %}
 {% block title %}Team Tab — {{ tournament.name }}{% endblock %}
+
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h3 class="fw-bold mb-0"><i class="bi bi-list-ol"></i> Team Tab</h3>
-  <div class="input-group" style="max-width:280px;">
-    <span class="input-group-text"><i class="bi bi-search"></i></span>
+<div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+  <div>
+    <h3 class="fw-bold mb-0"><i class="bi bi-list-ol"></i> Team Tab</h3>
+    <span class="badge bg-dark fw-normal small mt-1"><i class="bi bi-lock"></i> Tab Master view — all rounds shown</span>
+  </div>
+  <div class="input-group" style="max-width:300px;">
+    <span class="input-group-text bg-dark text-white border-0"><i class="bi bi-search"></i></span>
     <input type="text" id="tabSearch" class="form-control" placeholder="Find in table...">
   </div>
 </div>
+<div class="alert alert-secondary py-2 small mb-3">
+  <i class="bi bi-eye"></i> Viewing all rounds including <strong>silent</strong> and <strong>hidden-from-public</strong> rounds.
+  <a href="{% url 'tournament_overview' slug=tournament.slug %}" class="ms-2 text-decoration-none">Manage visibility →</a>
+</div>
 
+{% if not standings %}
+<div class="card border-0 shadow-sm">
+  <div class="table-responsive">
+    <table class="table mb-0">
+      <thead class="table-dark">
+        <tr>
+          <th>#</th><th>Team</th><th>Categories</th>
+          {% for r in rounds %}<th class="text-center">R{{ r.seq }}</th>{% endfor %}
+          <th class="text-center">Pts</th><th class="text-center">Spk</th><th class="text-center">1sts</th><th class="text-center">2nds</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td colspan="20" class="text-center text-muted py-4">No results entered yet. Enter ballots to see standings.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
 <div class="card border-0 shadow-sm">
   <div class="table-responsive">
     <table class="table table-hover table-sm mb-0 align-middle" id="teamTabTable">
       <thead class="table-dark">
         <tr>
-          <th class="sortable" data-col="0" style="width:36px;"># </th>
-          <th class="sortable" data-col="1">Team</th>
-          <th>Categories</th>
-          {% for r in rounds %}<th class="text-center" data-col="{{ forloop.counter|add:2 }}">R{{ r.seq }}</th>{% endfor %}
-          <th class="text-center fw-bold">Pts</th>
-          <th class="text-center">Spk</th>
-          <th class="text-center">1sts</th>
-          <th class="text-center">2nds</th>
+          <th class="text-center" style="width:40px;">
+            <span title="Rank">&#8645;</span>
+          </th>
+          <th><i class="bi bi-people-fill"></i> Team</th>
+          <th><i class="bi bi-person-fill"></i> Inst.</th>
+          <th><i class="bi bi-tags-fill"></i> Cat.</th>
+          {% for r in rounds %}
+          <th class="text-center" style="min-width:70px;">
+            R{{ r.seq }}
+            {% if r.silent %}<br><span class="badge bg-secondary" style="font-size:.6rem;">Silent</span>{% endif %}
+            {% if not r.public_tab_visible %}<br><span class="badge bg-warning text-dark" style="font-size:.6rem;">Hidden</span>{% endif %}
+          </th>
+          {% endfor %}
+          <th class="text-center" title="Total team points">Pts</th>
+          <th class="text-center" title="Total speaker score">Spk</th>
+          <th class="text-center" title="First-place finishes">1sts</th>
+          <th class="text-center" title="Second-place finishes">2nds</th>
         </tr>
       </thead>
       <tbody>
         {% for row in standings %}{% if not row.team.is_swing %}
         <tr class="tab-row">
-          <td class="fw-bold text-muted">{{ row.rank }}</td>
-          <td class="fw-semibold">{{ row.team.emoji }} {{ row.team.name }}
-            {% if row.team.institution %}<span class="text-muted small ms-1">({{ row.team.institution.code|default:row.team.institution.name }})</span>{% endif %}
+          <td class="text-center fw-bold text-muted">{{ row.rank }}</td>
+          <td class="fw-semibold">
+            <a href="{% url 'team_detail' slug=tournament.slug team_pk=row.team.pk %}" class="text-decoration-none text-dark"
+               title="{% for spk in row.team.speakers.all %}{{ spk.name }}{% if not forloop.last %}, {% endif %}{% endfor %}">
+              {% if row.team.emoji %}{{ row.team.emoji }} {% endif %}{{ row.team.name }}
+            </a>
           </td>
-          <td class="small text-muted">{{ row.team.break_category }}</td>
+          <td class="small text-muted">{% if row.team.institution %}{{ row.team.institution.code|default:row.team.institution.name }}{% else %}—{% endif %}</td>
+          <td class="small">
+            {% if row.team.break_category %}<span class="badge bg-info text-dark">{{ row.team.break_category }}</span>{% else %}<span class="text-muted">—</span>{% endif %}
+          </td>
           {% for r in rounds %}
-          <td class="text-center" style="min-width:52px;">
-            {% with data=row.rounds|default_if_none:None %}
-              {% if row.rounds %}
-                {% for seq, rd in row.rounds.items %}{% if seq == r.seq %}
-                <div style="line-height:1.1;">
-                  {% if rd.rank == 1 %}<span class="text-success fw-bold">&#8679;</span> <span class="fw-bold" style="font-size:.8rem;">1st</span>
-                  {% elif rd.rank == 2 %}<span class="text-success">&#8679;</span> <span style="font-size:.8rem;">2nd</span>
-                  {% elif rd.rank == 3 %}<span class="text-warning">&#8681;</span> <span style="font-size:.8rem;">3rd</span>
-                  {% else %}<span class="text-danger fw-bold">&#8681;</span> <span class="text-danger" style="font-size:.8rem;">4th</span>{% endif %}
-                  <div class="text-muted" style="font-size:.72rem;">{{ rd.score|floatformat:0 }}</div>
-                </div>
-                {% endif %}{% endfor %}
-              {% else %}<span class="text-muted">—</span>{% endif %}
+          <td class="text-center" style="min-width:60px;">
+            {% with found=False %}
+            {% for seq, rd in row.rounds.items %}{% if seq == r.seq %}
+              <div style="line-height:1.3;">
+                {% if rd.rank == 1 %}
+                  <div class="fw-bold text-success" style="font-size:.9rem;">&#8679; 1st</div>
+                {% elif rd.rank == 2 %}
+                  <div class="fw-bold text-success" style="font-size:.9rem; opacity:.8;">&#8679; 2nd</div>
+                {% elif rd.rank == 3 %}
+                  <div class="fw-bold text-warning" style="font-size:.9rem;">&#8681; 3rd</div>
+                {% else %}
+                  <div class="fw-bold text-danger" style="font-size:.9rem;">&#8681; 4th</div>
+                {% endif %}
+                {% if rd.score %}<div class="text-muted" style="font-size:.72rem;">{{ rd.score|floatformat:0 }}</div>{% endif %}
+                {% if rd.position %}<div><span class="badge bg-secondary" style="font-size:.6rem; opacity:.85;">{{ rd.position }}</span></div>{% endif %}
+              </div>
+            {% endif %}{% endfor %}
             {% endwith %}
           </td>
           {% endfor %}
           <td class="text-center fw-bold fs-6">{{ row.total_points }}</td>
-          <td class="text-center">{{ row.total_score|floatformat:0 }}</td>
+          <td class="text-center">{% if row.total_score %}{{ row.total_score|floatformat:0 }}{% else %}<span class="text-muted">0</span>{% endif %}</td>
           <td class="text-center">{{ row.first_places }}</td>
           <td class="text-center">{{ row.second_places }}</td>
         </tr>
-        {% endif %}{% empty %}
-        <tr><td colspan="20" class="text-center text-muted py-4">No results entered yet.</td></tr>
-        {% endfor %}
+        {% endif %}{% endfor %}
       </tbody>
     </table>
   </div>
 </div>
-{% if standings %}<div class="mt-2 text-muted small">{{ standings|length }} teams &nbsp;|&nbsp; <a href="{% url 'public_team_tab' slug=tournament.slug %}" target="_blank"><i class="bi bi-eye"></i> Public view</a></div>{% endif %}
+<div class="mt-2 text-muted small d-flex gap-3">
+  <span>{{ standings|length }} teams</span>
+  <a href="{% url 'public_team_tab' slug=tournament.slug %}" target="_blank"><i class="bi bi-eye"></i> Public view</a>
+</div>
+{% endif %}
 {% endblock %}
+
 {% block extra_js %}
 <script>
 document.getElementById("tabSearch").addEventListener("input", function () {

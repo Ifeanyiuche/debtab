@@ -96,7 +96,7 @@ class TeamForm(forms.ModelForm):
 class AdjudicatorForm(forms.ModelForm):
     class Meta:
         model = Adjudicator
-        fields = ["name", "institution", "email", "base_score", "independent"]
+        fields = ["name", "institution", "email", "base_score", "adj_type", "independent"]
 
     def __init__(self, tournament, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -148,6 +148,12 @@ class ParticipantForm(forms.Form):
         initial=1.5,
         label="Judge Score",
         help_text="Ranking: 0=trainee, 1=panellist, 2=chair, 3=senior chair",
+    )
+    adj_type = forms.ChoiceField(
+        choices=Adjudicator.TYPE_CHOICES,
+        required=False,
+        initial=Adjudicator.TYPE_INDEPENDENT,
+        label="Judge type",
     )
     independent = forms.BooleanField(required=False, label="Independent adjudicator")
 

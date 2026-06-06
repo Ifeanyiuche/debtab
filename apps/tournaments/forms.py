@@ -52,8 +52,12 @@ class TournamentForm(forms.ModelForm):
 class RoundForm(forms.ModelForm):
     class Meta:
         model = Round
-        fields = ["name", "seq", "abbreviation", "draw_type", "is_break_round", "silent"]
+        fields = ["name", "seq", "abbreviation", "draw_type", "is_break_round", "silent", "public_tab_visible"]
         widgets = {
             "name": forms.TextInput(attrs={"placeholder": "e.g. Round 1 or Semifinals"}),
             "abbreviation": forms.TextInput(attrs={"placeholder": "e.g. R1, SF"}),
+        }
+        help_texts = {
+            "silent": "Silent rounds are tracked but not counted toward the official speaker tab.",
+            "public_tab_visible": "Uncheck to hide this round from the public tab. You will always see it in the backend.",
         }

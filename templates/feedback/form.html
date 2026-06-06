@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}Give Feedback — {{ tournament.name }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h3 class="fw-bold mb-0"><i class="bi bi-chat-left-text"></i> Give Adjudicator Feedback</h3>
+  <a href="{% url 'public_overview' slug=tournament.slug %}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-left"></i> Back
+  </a>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-md-7">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-4">
+        <p class="text-muted mb-3">
+          <i class="bi bi-info-circle"></i>
+          <strong>{{ debate.round.name }}</strong> —
+          {% if debate.venue %}{{ debate.venue.name }}{% else %}Room {{ debate.room_rank }}{% endif %}
+        </p>
+
+        <form method="post">
+          {% csrf_token %}
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Which adjudicator are you giving feedback on? <span class="text-danger">*</span></label>
+            <select name="adjudicator" class="form-select" required>
+              <option value="">— Select adjudicator —</option>
+              {% for da in debate_adjs %}
+              <option value="{{ da.adjudicator.pk }}">
+                {{ da.adjudicator.name }} ({% if da.role == 'C' %}Chair{% elif da.role == 'P' %}Panellist{% else %}Trainee{% endif %})
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Score <span class="text-danger">*</span></label>
+            <div class="d-flex gap-3 align-items-center">
+              <input type="range" class="form-range" name="score" id="scoreRange" min="1" max="10" step="1" value="5"
+                     oninput="document.getElementById('scoreDisplay').textContent = this.value">
+              <span class="fw-bold fs-5 text-primary" id="scoreDisplay">5</span>
+              <span class="text-muted small">/ 10</span>
+            </div>
+            <div class="d-flex justify-content-between small text-muted mt-1">
+              <span>1 — Poor</span><span>5 — Average</span><span>10 — Excellent</span>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Comments</label>
+            <textarea name="comments" class="form-control" rows="4"
+                      placeholder="Constructive feedback on their judging — clarity, fairness, quality of oral adjudication..."></textarea>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Who are you?</label>
+            <div class="row g-2">
+              <div class="col-4">
+                <select name="source_type" class="form-select form-select-sm" id="sourceType" onchange="toggleSource()">
+                  <option value="speaker">I'm a speaker</option>
+                  <option value="adjudicator">I'm an adjudicator</option>
+                  <option value="anonymous">Anonymous</option>
+                </select>
+              </div>
+              <div class="col-8" id="sourceIdBox">
+                <select name="source_id" class="form-select form-select-sm" id="sourceSpeakerSel">
+                  <option value="">— Select your name —</option>
+                  {% for spk in all_speakers %}
+                  <option value="{{ spk.pk }}">{{ spk.name }}</option>
+                  {% endfor %}
+                </select>
+                <select name="source_id_adj" class="form-select form-select-sm d-none" id="sourceAdjSel">
+                  <option value="">— Select your name —</option>
+                  {% for adj in all_adjs_in_debate %}
+                  <option value="{{ adj.pk }}">{{ adj.name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-grid mt-4">
+            <button type="submit" class="btn btn-primary btn-lg">
+              <i class="bi bi-send"></i> Submit Feedback
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+function toggleSource() {
+  var t = document.getElementById("sourceType").value;
+  var spk = document.getElementById("sourceSpeakerSel");
+  var adj = document.getElementById("sourceAdjSel");
+  if (t === "speaker") { spk.classList.remove("d-none"); adj.classList.add("d-none"); adj.name = ""; spk.name = "source_id"; }
+  else if (t === "adjudicator") { adj.classList.remove("d-none"); spk.classList.add("d-none"); spk.name = ""; adj.name = "source_id"; }
+  else { spk.classList.add("d-none"); adj.classList.add("d-none"); }
+}
+</script>
+{% endblock %}

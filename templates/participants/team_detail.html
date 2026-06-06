@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}{{ team.name }} — {{ tournament.name }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h3 class="fw-bold mb-0">{% if team.emoji %}{{ team.emoji }} {% endif %}{{ team.name }}</h3>
+    {% if team.institution %}<span class="text-muted small">{{ team.institution.name }}</span>{% endif %}
+  </div>
+  <a href="{% url 'participant_list' slug=tournament.slug %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Back</a>
+</div>
+
+<!-- Speakers -->
+<div class="card border-0 shadow-sm mb-3">
+  <div class="card-header bg-dark text-white fw-semibold"><i class="bi bi-people"></i> Speakers</div>
+  <div class="card-body">
+    <div class="d-flex gap-3 flex-wrap">
+      {% for spk in team.speakers.all %}
+      <div class="text-center">
+        <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center mx-auto mb-1" style="width:48px;height:48px;font-size:1.2rem;">
+          {{ spk.name|first }}
+        </div>
+        <div class="fw-semibold small">{{ spk.name }}</div>
+        <div class="text-muted" style="font-size:.7rem;">
+          {% if spk.is_esl %}ESL {% endif %}{% if spk.is_efl %}EFL {% endif %}{% if spk.is_novice %}Novice {% endif %}{% if spk.is_schools %}Schools{% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- Activity Log -->
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-dark text-white fw-semibold"><i class="bi bi-clock-history"></i> Round-by-Round Performance</div>
+  {% if history %}
+  <div class="table-responsive">
+    <table class="table table-hover table-sm mb-0 align-middle">
+      <thead class="table-light">
+        <tr>
+          <th>Round</th>
+          <th>Room</th>
+          <th class="text-center">Position</th>
+          <th class="text-center">Rank</th>
+          <th class="text-center">Points</th>
+          <th class="text-center">Team Score</th>
+          <th>Speakers &amp; Individual Scores</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in history %}
+        <tr>
+          <td class="fw-semibold">
+            {{ row.round.name }}
+            {% if row.round.is_break_round %}<span class="badge bg-warning text-dark ms-1" style="font-size:.6rem;">Break</span>{% endif %}
+          </td>
+          <td class="text-muted small">{% if row.debate.venue %}{{ row.debate.venue.name }}{% else %}Room {{ row.debate.room_rank }}{% endif %}</td>
+          <td class="text-center">
+            <span class="badge bg-{% if row.position == 'OG' %}primary{% elif row.position == 'OO' %}danger{% elif row.position == 'CG' %}success{% else %}warning text-dark{% endif %}">
+              {{ row.position_label }}
+            </span>
+          </td>
+          <td class="text-center fw-bold">
+            {% if row.rank == 1 %}<span class="text-success">&#8679; 1st</span>
+            {% elif row.rank == 2 %}<span class="text-success" style="opacity:.8;">&#8679; 2nd</span>
+            {% elif row.rank == 3 %}<span class="text-warning">&#8681; 3rd</span>
+            {% elif row.rank == 4 %}<span class="text-danger">&#8681; 4th</span>
+            {% else %}<span class="text-muted">—</span>{% endif %}
+          </td>
+          <td class="text-center fw-bold">
+            {% if row.points is not None %}{{ row.points }}{% else %}<span class="text-muted">—</span>{% endif %}
+          </td>
+          <td class="text-center fw-bold">
+            {% if row.total_score %}{{ row.total_score|floatformat:0 }}{% else %}<span class="text-muted">—</span>{% endif %}
+          </td>
+          <td class="small">
+            {% for ss in row.scores %}
+            <span class="me-2">
+              {% if ss.speaker %}{{ ss.speaker.name }}{% else %}?{% endif %}
+              <span class="badge bg-light text-dark border">{{ ss.score|floatformat:0 }}</span>
+              {% if ss.ironman %}<span class="badge bg-secondary" style="font-size:.55rem;">Ironman</span>{% endif %}
+            </span>
+            {% empty %}<span class="text-muted">—</span>{% endfor %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="card-body text-muted">No debates recorded for this team yet.</div>
+  {% endif %}
+</div>
+{% endblock %}

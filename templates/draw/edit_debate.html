@@ -1,59 +1,200 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 {% block title %}Edit Room — {{ round.name }}{% endblock %}
 {% block content %}
-<h3 class="fw-bold mb-4"><i class="bi bi-pencil text-warning"></i> Edit Room</h3>
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h3 class="fw-bold mb-0">
+    <i class="bi bi-pencil text-warning"></i> Edit Room
+    <span class="text-muted fw-normal fs-6">— {% if debate.venue %}{{ debate.venue.name }}{% else %}Room {{ debate.room_rank }}{% endif %}</span>
+  </h3>
+  <a href="{% url 'draw_view' slug=tournament.slug round_seq=round.seq %}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-left"></i> Back to Draw
+  </a>
+</div>
+
+{% if is_break_round %}
+<div class="alert alert-primary py-2 mb-3">
+  <i class="bi bi-trophy-fill"></i>
+  <strong>Out-round:</strong> Only the <strong>{{ break_judge_count }} breaking judge{{ break_judge_count|pluralize }}</strong>
+  selected for {{ round.name }} are shown below.
+  To change who breaks, go to the <a href="{% url 'break_setup' slug=tournament.slug %}">Break Setup</a>.
+</div>
+{% endif %}
+
 <form method="post">
   {% csrf_token %}
-  <div class="card border-0 shadow-sm mb-3">
-    <div class="card-header bg-dark text-white fw-semibold">Team Positions</div>
+
+  <!-- Team Positions -->
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-dark text-white fw-semibold">
+      <i class="bi bi-people"></i> Team Positions
+    </div>
     <div class="card-body">
       <div class="row g-3">
         {% for pos in positions %}
         <div class="col-md-3">
-          <label class="form-label fw-semibold">{{ pos }}</label>
-          {% for dt in debate_teams %}{% if dt.position == pos %}<input type="hidden" name="team_{{ pos }}" value="{{ dt.team.pk }}">{% endif %}{% endfor %}
+          <label class="form-label fw-semibold
+            {% if pos == 'OG' %}text-primary{% elif pos == 'OO' %}text-danger{% elif pos == 'CG' %}text-success{% else %}text-warning{% endif %}">
+            {{ pos }}
+          </label>
           <select name="team_{{ pos }}" class="form-select">
             <option value="">— Empty —</option>
             {% for team in all_teams %}
-            <option value="{{ team.pk }}" {% for dt in debate_teams %}{% if dt.position == pos and dt.team.pk == team.pk %}selected{% endif %}{% endfor %}>{{ team.name }}</option>
+            <option value="{{ team.pk }}"
+              {% for dt in debate_teams %}{% if dt.position == pos and dt.team.pk == team.pk %}selected{% endif %}{% endfor %}>
+              {{ team.name }}
+            </option>
             {% endfor %}
           </select>
         </div>
         {% endfor %}
       </div>
+      <div class="mt-3 p-2 bg-light rounded small text-muted">
+        <strong>BP bench:</strong> OG + CG = Government &nbsp;|&nbsp; OO + CO = Opposition
+      </div>
     </div>
   </div>
-  <div class="card border-0 shadow-sm mb-3">
-    <div class="card-header bg-dark text-white fw-semibold">Adjudicators</div>
+
+  <!-- Adjudicators -->
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-dark text-white fw-semibold d-flex justify-content-between">
+      <span><i class="bi bi-person-badge"></i> Adjudicators</span>
+      <span class="fw-normal text-secondary small">
+        <i class="bi bi-circle-fill text-success" style="font-size:.5rem"></i> Available &nbsp;
+        <i class="bi bi-circle-fill text-warning" style="font-size:.5rem"></i> Assigned elsewhere &nbsp;
+        <span class="badge bg-warning text-dark" style="font-size:.6rem;">Trainee</span> Trainee type
+      </span>
+    </div>
     <div class="card-body row g-3">
+
+      <!-- Chair -->
       <div class="col-md-4">
-        <label class="form-label fw-semibold">Chair</label>
-        <select name="chair" class="form-select">
+        <label class="form-label fw-semibold">Chair <span class="text-danger">*</span></label>
+        <select name="chair" id="chairSelect" class="form-select" onchange="syncChairLock()">
           <option value="">— None —</option>
-          {% for adj in all_adjs %}
-          <option value="{{ adj.pk }}" {% for da in debate_adjs %}{% if da.role == 'C' and da.adjudicator.pk == adj.pk %}selected{% endif %}{% endfor %}>{{ adj.name }}</option>
+          {% for adj in regular_adjs %}
+          <option value="{{ adj.pk }}"
+            {% for da in debate_adjs %}{% if da.role == 'C' and da.adjudicator.pk == adj.pk %}selected{% endif %}{% endfor %}
+            {% if adj.pk in assigned_elsewhere_ids %}disabled{% endif %}>
+            {{ adj.name }}{% if adj.pk in assigned_elsewhere_ids %} — assigned{% endif %}
+          </option>
           {% endfor %}
         </select>
+        <div class="form-text">One chair per room. Selected chair is locked out of the panellist list.</div>
       </div>
+
+      <!-- Panellists -->
       <div class="col-md-4">
         <label class="form-label fw-semibold">Panellists</label>
-        <select name="panellists" class="form-select" multiple>
-          {% for adj in all_adjs %}
-          <option value="{{ adj.pk }}" {% for da in debate_adjs %}{% if da.role == 'P' and da.adjudicator.pk == adj.pk %}selected{% endif %}{% endfor %}>{{ adj.name }}</option>
+        <div class="border rounded p-2" style="max-height:240px; overflow-y:auto;">
+          {% for adj in regular_adjs %}
+          <div class="form-check panel-item" id="panel-item-{{ adj.pk }}">
+            <input class="form-check-input" type="checkbox" name="panellists" value="{{ adj.pk }}"
+              id="panel_{{ adj.pk }}"
+              {% for da in debate_adjs %}{% if da.role == 'P' and da.adjudicator.pk == adj.pk %}checked{% endif %}{% endfor %}
+              {% if adj.pk in assigned_elsewhere_ids %}disabled{% endif %}>
+            <label class="form-check-label {% if adj.pk in assigned_elsewhere_ids %}text-muted{% endif %}"
+                   for="panel_{{ adj.pk }}" id="panel-label-{{ adj.pk }}">
+              {{ adj.name }}
+              {% if adj.adj_type == 'C' %}<span class="badge bg-danger" style="font-size:.6rem;">CAP</span>
+              {% elif adj.adj_type == 'S' %}<span class="badge bg-info text-dark" style="font-size:.6rem;">School</span>{% endif %}
+              {% if adj.pk in assigned_elsewhere_ids %}<span class="text-muted small"> (assigned)</span>{% endif %}
+            </label>
+          </div>
+          {% empty %}
+          <p class="text-muted small mb-0">No regular judges available.</p>
           {% endfor %}
-        </select>
+        </div>
+        <div class="form-text">Select all panellists for this room.</div>
       </div>
+
+      <!-- Trainees -->
       <div class="col-md-4">
-        <label class="form-label fw-semibold">Trainees</label>
-        <select name="trainees" class="form-select" multiple>
-          {% for adj in all_adjs %}
-          <option value="{{ adj.pk }}" {% for da in debate_adjs %}{% if da.role == 'T' and da.adjudicator.pk == adj.pk %}selected{% endif %}{% endfor %}>{{ adj.name }}</option>
+        <label class="form-label fw-semibold">
+          Trainees
+          <span class="badge bg-warning text-dark ms-1" style="font-size:.65rem;">Observe only</span>
+        </label>
+        <div class="border rounded p-2" style="max-height:240px; overflow-y:auto;">
+          {% for adj in trainee_adjs %}
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="trainees" value="{{ adj.pk }}"
+              id="trainee_{{ adj.pk }}"
+              {% for da in debate_adjs %}{% if da.role == 'T' and da.adjudicator.pk == adj.pk %}checked{% endif %}{% endfor %}>
+            <label class="form-check-label" for="trainee_{{ adj.pk }}">
+              {{ adj.name }}
+              <span class="badge bg-warning text-dark" style="font-size:.6rem;">Trainee</span>
+            </label>
+          </div>
+          {% empty %}
+          <p class="text-muted small mb-0">No trainee judges registered.</p>
           {% endfor %}
-        </select>
+        </div>
+        <div class="form-text">Trainees observe; they do not score.</div>
       </div>
+
     </div>
   </div>
-  <button type="submit" class="btn btn-primary">Save Room</button>
-  <a href="{% url 'draw_view' slug=tournament.slug round_seq=round.seq %}" class="btn btn-outline-secondary ms-2">Cancel</a>
+
+  <div class="d-flex gap-2">
+    <button type="submit" class="btn btn-primary"><i class="bi bi-floppy"></i> Save Room</button>
+    <a href="{% url 'draw_view' slug=tournament.slug round_seq=round.seq %}" class="btn btn-outline-secondary">Cancel</a>
+  </div>
 </form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+var _lockedPanelPk = null;
+
+function syncChairLock() {
+  var sel = document.getElementById("chairSelect");
+  if (!sel) return;
+
+  // Un-lock the previously locked panellist row
+  if (_lockedPanelPk) {
+    _setPanelLock(_lockedPanelPk, false);
+    _lockedPanelPk = null;
+  }
+
+  var chairPk = sel.value;
+  if (!chairPk) return;
+
+  var cb = document.getElementById("panel_" + chairPk);
+  if (cb) {
+    cb.checked = false;
+    _setPanelLock(chairPk, true);
+    _lockedPanelPk = chairPk;
+  }
+}
+
+function _setPanelLock(pk, lock) {
+  var cb    = document.getElementById("panel_"      + pk);
+  var item  = document.getElementById("panel-item-" + pk);
+  var label = document.getElementById("panel-label-" + pk);
+  var tag   = document.getElementById("chair-tag-"  + pk);
+
+  // Never touch items already disabled server-side (assigned elsewhere)
+  if (!cb || cb.dataset.assignedElsewhere) return;
+
+  cb.disabled = lock;
+  if (item)  item.style.opacity = lock ? "0.4" : "";
+
+  if (lock && !tag) {
+    var badge = document.createElement("span");
+    badge.id        = "chair-tag-" + pk;
+    badge.className = "badge bg-danger ms-1";
+    badge.style.fontSize = ".6rem";
+    badge.textContent = "Already Chair";
+    if (label) label.appendChild(badge);
+  }
+  if (!lock && tag) tag.remove();
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+  // Mark server-disabled checkboxes so we never accidentally re-enable them
+  document.querySelectorAll(".panel-item input[type=checkbox][disabled]").forEach(function (cb) {
+    cb.dataset.assignedElsewhere = "1";
+  });
+  syncChairLock();
+});
+</script>
 {% endblock %}

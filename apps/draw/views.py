@@ -5,7 +5,7 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from apps.tournaments.models import Tournament, Round
 from apps.participants.models import Adjudicator
-from .models import Debate, DebateTeam, DebateAdjudicator
+from .models import Debate, DebateTeam, DebateAdjudicator, JudgeBreak
 from .generator import generate_bp_draw, auto_allocate_adjudicators
 
 
@@ -115,34 +115,51 @@ def edit_debate(request, slug, round_seq, debate_id):
     debate_adjs = debate.debate_adjudicators.select_related("adjudicator")
 
     if request.method == "POST":
-        # Update team positions
         debate.debate_teams.all().delete()
         positions = ["OG", "OO", "CG", "CO"] if t.is_bp else ["PROP", "OPP"]
         for pos in positions:
             team_id = request.POST.get(f"team_{pos}")
             if team_id:
-                DebateTeam.objects.create(
-                    debate=debate,
-                    team_id=int(team_id),
-                    position=pos,
-                )
-        # Update adjudicators
+                DebateTeam.objects.create(debate=debate, team_id=int(team_id), position=pos)
         debate.debate_adjudicators.all().delete()
-        chair_id = request.POST.get("chair")
+        chair_id = request.POST.get("chair", "").strip()
         if chair_id:
             DebateAdjudicator.objects.create(
                 debate=debate, adjudicator_id=int(chair_id), role=DebateAdjudicator.ROLE_CHAIR
             )
         for panel_id in request.POST.getlist("panellists"):
+            if panel_id == chair_id:  # prevent double-assignment
+                continue
             DebateAdjudicator.objects.create(
                 debate=debate, adjudicator_id=int(panel_id), role=DebateAdjudicator.ROLE_PANEL
             )
         for trainee_id in request.POST.getlist("trainees"):
+            if trainee_id == chair_id:
+                continue
             DebateAdjudicator.objects.create(
                 debate=debate, adjudicator_id=int(trainee_id), role=DebateAdjudicator.ROLE_TRAINEE
             )
         messages.success(request, "Room updated.")
         return redirect("draw_view", slug=t.slug, round_seq=r.seq)
+
+    # For break rounds, restrict available judges to those who broke to this round
+    is_break_round = r.is_break_round
+    if is_break_round:
+        breaking_pks = set(r.judge_breaks.values_list("adjudicator_id", flat=True))
+        all_adjs = t.adjudicators.filter(active=True, pk__in=breaking_pks).order_by("name")
+        break_judge_count = len(breaking_pks)
+    else:
+        break_judge_count = 0
+
+    assigned_elsewhere_ids = set(
+        DebateAdjudicator.objects.filter(debate__round=r)
+        .exclude(debate=debate)
+        .values_list("adjudicator_id", flat=True)
+    )
+
+    # Separate trainees from regular judges for cleaner template lists
+    regular_adjs = [a for a in all_adjs if a.adj_type != "N"]
+    trainee_adjs = [a for a in all_adjs if a.adj_type == "N"]
 
     context = {
         "tournament": t,
@@ -152,9 +169,46 @@ def edit_debate(request, slug, round_seq, debate_id):
         "debate_adjs": debate_adjs,
         "all_teams": all_teams,
         "all_adjs": all_adjs,
+        "regular_adjs": regular_adjs,
+        "trainee_adjs": trainee_adjs,
         "positions": ["OG", "OO", "CG", "CO"] if t.is_bp else ["PROP", "OPP"],
+        "assigned_elsewhere_ids": assigned_elsewhere_ids,
+        "is_break_round": is_break_round,
+        "break_judge_count": break_judge_count,
     }
     return render(request, "draw/edit_debate.html", context)
+
+
+@login_required
+def draws_overview(request, slug):
+    """All-rounds draw overview for the tab master."""
+    t = get_object_or_404(Tournament, slug=slug, tab_master=request.user)
+    rounds = t.rounds.prefetch_related(
+        "debates__debate_teams__team",
+        "debates__debate_adjudicators__adjudicator",
+    ).order_by("seq")
+    BP_POSITIONS = ["OG", "OO", "CG", "CO"]
+    rounds_data = []
+    for r in rounds:
+        debates_raw = list(r.debates.prefetch_related(
+            "debate_teams__team", "debate_adjudicators__adjudicator"
+        ).select_related("venue").order_by("room_rank"))
+        debates = []
+        for d in debates_raw:
+            teams_by_pos = {dt.position: dt.team for dt in d.debate_teams.all()}
+            chair = next((da.adjudicator for da in d.debate_adjudicators.all() if da.role == "C"), None)
+            panellists = [da.adjudicator for da in d.debate_adjudicators.all() if da.role == "P"]
+            debates.append({
+                "debate": d,
+                "og": teams_by_pos.get("OG"),
+                "oo": teams_by_pos.get("OO"),
+                "cg": teams_by_pos.get("CG"),
+                "co": teams_by_pos.get("CO"),
+                "chair": chair,
+                "panellists": panellists,
+            })
+        rounds_data.append({"round": r, "debates": debates, "count": len(debates)})
+    return render(request, "draw/draws_overview.html", {"tournament": t, "rounds_data": rounds_data})
 
 
 def public_draw(request, slug, round_seq):

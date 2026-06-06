@@ -10,10 +10,11 @@ from .calculator import (
 
 @login_required
 def team_tab(request, slug):
+    """Backend team tab: always shows ALL rounds, including silent/hidden ones."""
     t = get_object_or_404(Tournament, slug=slug, tab_master=request.user)
-    rounds = get_completed_rounds(t)
+    rounds = get_completed_rounds(t, include_silent=True)
     if t.is_bp:
-        standings = bp_team_standings(t)
+        standings = bp_team_standings(t, include_silent=True)
     elif t.is_wsdc:
         standings = wsdc_team_standings(t)
     else:
@@ -25,10 +26,11 @@ def team_tab(request, slug):
 
 @login_required
 def speaker_tab(request, slug):
+    """Backend speaker tab: always shows ALL rounds, including silent/hidden ones."""
     t = get_object_or_404(Tournament, slug=slug, tab_master=request.user)
-    rounds = get_completed_rounds(t)
+    rounds = get_completed_rounds(t, include_silent=True)
     if t.is_bp:
-        standings = bp_speaker_standings(t)
+        standings = bp_speaker_standings(t, include_silent=True)
     elif t.is_wsdc:
         standings = wsdc_speaker_standings(t)
     elif t.is_ps:
@@ -41,23 +43,30 @@ def speaker_tab(request, slug):
 
 
 def public_team_tab(request, slug):
+    """Public team tab: only rounds marked public_tab_visible=True."""
     t = get_object_or_404(Tournament, slug=slug)
     if not t.public_tab_released:
         return render(request, "public/tab_hidden.html", {"tournament": t})
-    rounds = get_completed_rounds(t)
-    standings = bp_team_standings(t) if t.is_bp else (wsdc_team_standings(t) if t.is_wsdc else [])
+    rounds = get_completed_rounds(t, include_silent=False, public_only=True)
+    if t.is_bp:
+        standings = bp_team_standings(t, include_silent=False, public_only=True)
+    elif t.is_wsdc:
+        standings = wsdc_team_standings(t)
+    else:
+        standings = []
     return render(request, "public/team_tab.html", {
         "tournament": t, "standings": standings, "rounds": rounds,
     })
 
 
 def public_speaker_tab(request, slug):
+    """Public speaker tab: only rounds marked public_tab_visible=True."""
     t = get_object_or_404(Tournament, slug=slug)
     if not t.public_tab_released:
         return render(request, "public/tab_hidden.html", {"tournament": t})
-    rounds = get_completed_rounds(t)
+    rounds = get_completed_rounds(t, include_silent=False, public_only=True)
     if t.is_bp:
-        standings = bp_speaker_standings(t)
+        standings = bp_speaker_standings(t, include_silent=False, public_only=True)
     elif t.is_wsdc:
         standings = wsdc_speaker_standings(t)
     elif t.is_ps:

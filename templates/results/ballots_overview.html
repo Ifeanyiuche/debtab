@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% block title %}Ballots — {{ tournament.name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h3 class="fw-bold mb-0"><i class="bi bi-card-checklist"></i> Ballots</h3>
+  <a href="{% url 'round_create' slug=tournament.slug %}?next=ballots_overview" class="btn btn-primary btn-sm">
+    <i class="bi bi-plus-circle"></i> Add Round
+  </a>
+</div>
+
+{% if not rounds_data %}
+<div class="alert alert-info">No rounds have been created yet. <a href="{% url 'round_create' slug=tournament.slug %}?next=ballots_overview">Add a round</a> to get started.</div>
+{% endif %}
+
+{% for rd in rounds_data %}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2
+    {% if rd.confirmed == rd.total and rd.total > 0 %}bg-success text-white
+    {% elif rd.confirmed > 0 %}bg-warning text-dark
+    {% else %}bg-secondary text-white{% endif %}">
+    <span class="fw-bold">
+      <i class="bi bi-diagram-3"></i> {{ rd.round.name }}
+      {% if rd.round.silent %}<span class="badge bg-dark ms-1">Silent</span>{% endif %}
+    </span>
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+      <span class="small">
+        {{ rd.confirmed }}/{{ rd.total }} ballots confirmed
+        {% if rd.confirmed == rd.total and rd.total > 0 %}
+          <i class="bi bi-check-circle-fill ms-1"></i>
+        {% endif %}
+      </span>
+      <!-- CRUD controls -->
+      <button type="button"
+              class="btn btn-sm {% if rd.confirmed > 0 %}btn-outline-light{% else %}btn-outline-light{% endif %}"
+              data-bs-toggle="collapse" data-bs-target="#rename-ballot-{{ rd.round.pk }}"
+              title="Rename this round">
+        <i class="bi bi-pencil"></i>
+      </button>
+      <a href="{% url 'round_edit' slug=tournament.slug round_seq=rd.round.seq %}?next=ballots_overview"
+         class="btn btn-sm btn-outline-light" title="Edit round settings">
+        <i class="bi bi-gear"></i>
+      </a>
+      <button type="button" class="btn btn-sm btn-outline-danger"
+              data-bs-toggle="modal" data-bs-target="#del-ballot-{{ rd.round.pk }}"
+              title="Delete this round">
+        <i class="bi bi-trash"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- Inline rename form (collapsed) -->
+  <div class="collapse" id="rename-ballot-{{ rd.round.pk }}">
+    <div class="card-body bg-light border-bottom py-2">
+      <form method="post" action="{% url 'round_rename' slug=tournament.slug round_seq=rd.round.seq %}">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="ballots_overview">
+        <div class="input-group input-group-sm">
+          <span class="input-group-text"><i class="bi bi-pencil"></i> Rename</span>
+          <input type="text" name="name" class="form-control" value="{{ rd.round.name }}" required placeholder="New round name">
+          <button type="submit" class="btn btn-success">Save</button>
+          <button type="button" class="btn btn-outline-secondary"
+                  data-bs-toggle="collapse" data-bs-target="#rename-ballot-{{ rd.round.pk }}">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {% if rd.debates %}
+  <div class="table-responsive">
+    <table class="table table-hover mb-0 align-middle">
+      <thead class="table-light">
+        <tr>
+          <th style="width:120px">Room</th>
+          <th>Teams</th>
+          <th style="width:140px">Chair</th>
+          <th style="width:110px">Status</th>
+          <th style="width:100px">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for debate in rd.debates %}
+        <tr class="{% if debate.result_status == 'confirmed' %}table-success{% elif debate.result_status == 'ballot_in' %}table-warning{% endif %}">
+          <td class="fw-semibold">
+            {% if debate.venue %}{{ debate.venue.name }}{% else %}Room {{ debate.room_rank }}{% endif %}
+          </td>
+          <td>
+            <div class="d-flex flex-wrap gap-1">
+              {% for dt in debate.debate_teams.all %}
+              <span class="badge fw-normal
+                {% if dt.position == 'OG' %}bg-primary
+                {% elif dt.position == 'OO' %}bg-danger
+                {% elif dt.position == 'CG' %}bg-success
+                {% else %}bg-warning text-dark{% endif %}">
+                {{ dt.position }}: {{ dt.team.name }}
+                {% if dt.rank %}<span class="opacity-75">({{ dt.rank }}{% if dt.rank == 1 %}st{% elif dt.rank == 2 %}nd{% elif dt.rank == 3 %}rd{% else %}th{% endif %})</span>{% endif %}
+              </span>
+              {% endfor %}
+            </div>
+          </td>
+          <td class="small text-muted">
+            {% for da in debate.debate_adjudicators.all %}{% if da.role == 'C' %}{{ da.adjudicator.name }}{% endif %}{% endfor %}
+          </td>
+          <td>
+            {% if debate.result_status == 'confirmed' %}
+              <span class="badge bg-success"><i class="bi bi-check-circle"></i> Confirmed</span>
+            {% elif debate.result_status == 'ballot_in' %}
+              <span class="badge bg-warning text-dark"><i class="bi bi-pencil"></i> In Progress</span>
+            {% else %}
+              <span class="badge bg-secondary"><i class="bi bi-dash-circle"></i> No Ballot</span>
+            {% endif %}
+          </td>
+          <td>
+            <a href="{% url 'ballot_entry' slug=tournament.slug round_seq=rd.round.seq debate_id=debate.pk %}"
+               class="btn btn-sm {% if debate.result_status == 'confirmed' %}btn-outline-success{% else %}btn-outline-primary{% endif %}">
+              {% if debate.result_status == 'confirmed' %}
+                <i class="bi bi-pencil-square"></i> Edit
+              {% else %}
+                <i class="bi bi-card-checklist"></i> Enter
+              {% endif %}
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="card-body text-muted small">No debates drawn for this round yet.</div>
+  {% endif %}
+</div>
+{% endfor %}
+
+<!-- Delete confirmation modals -->
+{% for rd in rounds_data %}
+<div class="modal fade" id="del-ballot-{{ rd.round.pk }}" tabindex="-1" aria-labelledby="delBallotLabel-{{ rd.round.pk }}" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title" id="delBallotLabel-{{ rd.round.pk }}"><i class="bi bi-trash"></i> Delete Round</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p>Delete <strong>{{ rd.round.name }}</strong>?</p>
+        <p class="text-muted small mb-0">This permanently removes all debates, ballots, and speaker scores for this round. This action cannot be undone.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <form method="post" action="{% url 'round_delete' slug=tournament.slug round_seq=rd.round.seq %}">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="ballots_overview">
+          <button type="submit" class="btn btn-danger"><i class="bi bi-trash"></i> Delete</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endfor %}
+{% endblock %}

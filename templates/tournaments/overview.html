@@ -1,13 +1,47 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 {% block title %}{{ tournament.name }} — DebTab{% endblock %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
   <div>
     <h2 class="fw-bold mb-0">{{ tournament.name }}</h2>
     <span class="text-muted">{{ tournament.get_format_display }}</span>
   </div>
-  <a href="{% url 'tournament_edit' slug=tournament.slug %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-gear"></i> Settings</a>
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="{% url 'tournament_edit' slug=tournament.slug %}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-gear"></i> Settings
+    </a>
+    {% if tournament.public_tab_released %}
+    <form method="post" action="{% url 'hide_full_tab' slug=tournament.slug %}">
+      {% csrf_token %}
+      <button class="btn btn-outline-warning btn-sm">
+        <i class="bi bi-eye-slash"></i> Hide Full Tab
+      </button>
+    </form>
+    {% else %}
+    <form method="post" action="{% url 'release_full_tab' slug=tournament.slug %}"
+          onsubmit="return confirm('Release the full tab publicly? All rounds will become visible to the public.')">
+      {% csrf_token %}
+      <button class="btn btn-success btn-sm">
+        <i class="bi bi-globe"></i> Release Full Tab
+      </button>
+    </form>
+    {% endif %}
+  </div>
 </div>
+
+<!-- Public tab status banner -->
+{% if tournament.public_tab_released %}
+<div class="alert alert-success py-2 mb-3 d-flex justify-content-between align-items-center">
+  <span><i class="bi bi-globe"></i> <strong>Tab is public.</strong> All rounds are visible to the public.</span>
+  <a href="{% url 'public_team_tab' slug=tournament.slug %}" target="_blank" class="btn btn-sm btn-outline-success">
+    <i class="bi bi-eye"></i> View Public Tab
+  </a>
+</div>
+{% else %}
+<div class="alert alert-secondary py-2 mb-3">
+  <i class="bi bi-lock"></i> <strong>Tab is private.</strong> Use per-round visibility toggles below to control exactly what the public sees, or click <strong>Release Full Tab</strong> to publish everything at once.
+</div>
+{% endif %}
 
 <!-- Stats row -->
 <div class="row g-3 mb-4">
@@ -17,34 +51,100 @@
   <div class="col-sm-3"><div class="card border-0 shadow-sm text-center py-3"><div class="fs-2 fw-bold text-info">{{ rounds|length }}</div><div class="text-muted small">Rounds</div></div></div>
 </div>
 
-<!-- Rounds -->
+<!-- Rounds table -->
 <div class="d-flex justify-content-between align-items-center mb-2">
   <h4 class="fw-semibold mb-0"><i class="bi bi-stack"></i> Rounds</h4>
-  <a href="{% url 'round_create' slug=tournament.slug %}" class="btn btn-sm btn-outline-primary"><i class="bi bi-plus"></i> Add Round</a>
+  <a href="{% url 'round_create' slug=tournament.slug %}" class="btn btn-sm btn-outline-primary">
+    <i class="bi bi-plus"></i> Add Round
+  </a>
 </div>
+
 <div class="card border-0 shadow-sm mb-4">
   <div class="table-responsive">
-    <table class="table table-hover mb-0">
-      <thead class="table-dark"><tr><th>Round</th><th>Type</th><th>Status</th><th>Draw</th><th>Results</th><th>Actions</th></tr></thead>
+    <table class="table table-hover mb-0 align-middle">
+      <thead class="table-dark">
+        <tr>
+          <th>Round</th>
+          <th>Type</th>
+          <th>Status</th>
+          <th class="text-center">Draw</th>
+          <th class="text-center">Results</th>
+          <th class="text-center" title="Controls whether this round shows in the public tab">
+            Public Tab <i class="bi bi-info-circle text-muted small"></i>
+          </th>
+          <th>Actions</th>
+        </tr>
+      </thead>
       <tbody>
         {% for r in rounds %}
-        <tr>
-          <td class="fw-semibold">{{ r.name }}{% if r.is_break_round %} <span class="badge bg-warning text-dark">Break</span>{% endif %}</td>
+        <tr class="{% if r.silent %}table-warning bg-opacity-25{% endif %}">
+          <td class="fw-semibold">
+            {{ r.name }}
+            {% if r.is_break_round %}<span class="badge bg-warning text-dark ms-1">Break</span>{% endif %}
+            {% if r.silent %}<span class="badge bg-secondary ms-1" title="Silent round — excluded from official speaker tab">Silent</span>{% endif %}
+          </td>
           <td><span class="badge bg-secondary">{{ r.get_draw_type_display }}</span></td>
-          <td><span class="badge bg-{% if r.status == 'completed' %}success{% elif r.status == 'released' %}info{% elif r.status == 'confirmed' %}warning{% else %}light text-dark{% endif %}">{{ r.get_status_display }}</span></td>
-          <td>{% if r.draw_released %}<span class="text-success"><i class="bi bi-check-circle"></i> Released</span>{% else %}<span class="text-muted">Hidden</span>{% endif %}</td>
-          <td>{% if r.results_released %}<span class="text-success"><i class="bi bi-check-circle"></i> Released</span>{% else %}<span class="text-muted">Hidden</span>{% endif %}</td>
           <td>
-            <a href="{% url 'draw_view' slug=tournament.slug round_seq=r.seq %}" class="btn btn-xs btn-outline-primary btn-sm me-1"><i class="bi bi-diagram-2"></i> Draw</a>
-            <a href="{% url 'results_overview' slug=tournament.slug round_seq=r.seq %}" class="btn btn-xs btn-outline-success btn-sm me-1"><i class="bi bi-card-checklist"></i> Results</a>
-            <a href="{% url 'round_edit' slug=tournament.slug round_seq=r.seq %}" class="btn btn-xs btn-outline-secondary btn-sm"><i class="bi bi-pencil"></i></a>
+            <span class="badge bg-{% if r.status == 'completed' %}success{% elif r.status == 'released' %}info{% elif r.status == 'confirmed' %}warning{% else %}light text-dark{% endif %}">
+              {{ r.get_status_display }}
+            </span>
+          </td>
+          <td class="text-center">
+            {% if r.draw_released %}
+            <span class="text-success small"><i class="bi bi-check-circle-fill"></i> Public</span>
+            {% else %}
+            <span class="text-muted small"><i class="bi bi-eye-slash"></i> Hidden</span>
+            {% endif %}
+          </td>
+          <td class="text-center">
+            {% if r.results_released %}
+            <span class="text-success small"><i class="bi bi-check-circle-fill"></i> Public</span>
+            {% else %}
+            <span class="text-muted small"><i class="bi bi-eye-slash"></i> Hidden</span>
+            {% endif %}
+          </td>
+          <td class="text-center">
+            <form method="post" action="{% url 'toggle_round_tab_visibility' slug=tournament.slug round_seq=r.seq %}" class="d-inline">
+              {% csrf_token %}
+              {% if r.public_tab_visible %}
+              <button class="btn btn-sm btn-success" title="Click to hide this round from the public tab">
+                <i class="bi bi-eye-fill"></i> Visible
+              </button>
+              {% else %}
+              <button class="btn btn-sm btn-outline-secondary" title="Click to make this round visible in the public tab">
+                <i class="bi bi-eye-slash"></i> Hidden
+              </button>
+              {% endif %}
+            </form>
+          </td>
+          <td>
+            <a href="{% url 'draw_view' slug=tournament.slug round_seq=r.seq %}" class="btn btn-outline-primary btn-sm me-1">
+              <i class="bi bi-diagram-2"></i> Draw
+            </a>
+            <a href="{% url 'results_overview' slug=tournament.slug round_seq=r.seq %}" class="btn btn-outline-success btn-sm me-1">
+              <i class="bi bi-card-checklist"></i> Results
+            </a>
+            <a href="{% url 'motion_list' slug=tournament.slug round_seq=r.seq %}" class="btn btn-outline-info btn-sm me-1" title="Motions">
+              <i class="bi bi-card-text"></i>
+            </a>
+            <a href="{% url 'round_edit' slug=tournament.slug round_seq=r.seq %}" class="btn btn-outline-secondary btn-sm">
+              <i class="bi bi-pencil"></i>
+            </a>
           </td>
         </tr>
         {% empty %}
-        <tr><td colspan="6" class="text-center text-muted py-3">No rounds yet. <a href="{% url 'round_create' slug=tournament.slug %}">Add the first round.</a></td></tr>
+        <tr><td colspan="7" class="text-center text-muted py-3">No rounds yet. <a href="{% url 'round_create' slug=tournament.slug %}">Add the first round.</a></td></tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
+</div>
+
+<!-- Legend -->
+<div class="text-muted small mb-4">
+  <strong>Public Tab column:</strong>
+  <span class="badge bg-success ms-1"><i class="bi bi-eye-fill"></i> Visible</span> = this round appears in the public tab &nbsp;|&nbsp;
+  <span class="badge bg-secondary ms-1"><i class="bi bi-eye-slash"></i> Hidden</span> = hidden from public (you still see it in the backend tab) &nbsp;|&nbsp;
+  <span class="badge bg-secondary ms-1">Silent</span> = scores visible but don't count toward the official speaker tab
 </div>
 {% endblock %}

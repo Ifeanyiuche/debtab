@@ -1,28 +1,110 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 {% block title %}Adjudicators — {{ tournament.name }}{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h3 class="fw-bold mb-0"><i class="bi bi-person-badge"></i> Adjudicators</h3>
-  <a href="{% url 'adjudicator_create' slug=tournament.slug %}" class="btn btn-primary btn-sm"><i class="bi bi-plus"></i> Add Adjudicator</a>
+  <div class="d-flex gap-2">
+    <a href="{% url 'judge_tab' slug=tournament.slug %}" class="btn btn-success btn-sm"><i class="bi bi-bar-chart-line"></i> Power Rankings</a>
+    <a href="{% url 'adjudicator_create' slug=tournament.slug %}" class="btn btn-primary btn-sm"><i class="bi bi-plus"></i> Add Adjudicator</a>
+  </div>
 </div>
 <div class="card border-0 shadow-sm">
   <div class="table-responsive">
-    <table class="table table-hover mb-0">
-      <thead class="table-dark"><tr><th>Name</th><th>Institution</th><th>Score</th><th>Independent</th><th>Checked In</th><th>Actions</th></tr></thead>
-      <tbody>
-        {% for adj in adjudicators %}
+    <table class="table table-hover mb-0 align-middle">
+      <thead class="table-dark">
         <tr>
-          <td class="fw-semibold">{{ adj.name }}</td>
-          <td>{{ adj.institution.name|default:"—" }}</td>
-          <td>{{ adj.base_score }}</td>
-          <td>{% if adj.independent %}<i class="bi bi-check text-success"></i>{% endif %}</td>
-          <td>{% if adj.checked_in %}<i class="bi bi-check-circle-fill text-success"></i>{% else %}<i class="bi bi-circle text-muted"></i>{% endif %}</td>
-          <td>
-            <a href="{% url 'adjudicator_edit' slug=tournament.slug pk=adj.pk %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-pencil"></i></a>
-            <a href="{% url 'adjudicator_delete' slug=tournament.slug pk=adj.pk %}" class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i></a>
+          <th class="text-center">Rank</th>
+          <th>Name</th>
+          <th>Institution</th>
+          <th class="text-center">Type</th>
+          <th class="text-center">Base Score</th>
+          <th class="text-center">Avg Feedback</th>
+          <th class="text-center">Responses</th>
+          <th class="text-center">Checked In</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in adj_rows %}
+        <tr>
+          <td class="text-center fw-bold">
+            {% if row.rank %}
+              {% if row.rank == 1 %}<span class="text-warning fs-5">&#9733;</span> {% endif %}{{ row.rank }}
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td class="fw-semibold">{{ row.adj.name }}</td>
+          <td class="small text-muted">{{ row.adj.institution.name|default:"—" }}</td>
+          <td class="text-center">
+            {% if row.adj.adj_type == 'C' %}<span class="badge bg-danger">CAP</span>
+            {% elif row.adj.adj_type == 'I' %}<span class="badge bg-primary">Indep.</span>
+            {% elif row.adj.adj_type == 'S' %}<span class="badge bg-secondary">School</span>
+            {% else %}<span class="badge bg-light text-dark border">Trainee</span>{% endif %}
+          </td>
+          <td class="text-center">{{ row.adj.base_score }}</td>
+          <td class="text-center">
+            {% if row.avg_feedback %}
+            <span class="badge bg-{% if row.avg_feedback >= 8 %}success{% elif row.avg_feedback >= 6 %}primary{% elif row.avg_feedback >= 4 %}warning text-dark{% else %}danger{% endif %}">
+              {{ row.avg_feedback }}/10
+            </span>
+            {% else %}
+            <span class="text-muted small">—</span>
+            {% endif %}
+          </td>
+          <td class="text-center small">{{ row.feedback_count }}</td>
+          <td class="text-center">
+            {% if row.adj.checked_in %}<i class="bi bi-check-circle-fill text-success fs-5"></i>
+            {% else %}<i class="bi bi-circle text-muted"></i>{% endif %}
+          </td>
+          <td class="text-nowrap">
+            <a href="{% url 'adjudicator_edit' slug=tournament.slug pk=row.adj.pk %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-pencil"></i></a>
+            <div class="btn-group">
+              <button type="button" class="btn btn-sm btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown" title="Change judge type">
+                <i class="bi bi-arrow-up-circle"></i>
+              </button>
+              <ul class="dropdown-menu dropdown-menu-end">
+                <li><span class="dropdown-item-text text-muted small">Change type for {{ row.adj.name }}</span></li>
+                <li><hr class="dropdown-divider"></li>
+                {% if row.adj.adj_type != 'C' %}
+                <li>
+                  <form method="post" action="{% url 'promote_adjudicator' slug=tournament.slug pk=row.adj.pk %}">
+                    {% csrf_token %}<input type="hidden" name="promote_to" value="C">
+                    <button type="submit" class="dropdown-item text-danger"><i class="bi bi-shield-star-fill"></i> Set as CAP</button>
+                  </form>
+                </li>
+                {% endif %}
+                {% if row.adj.adj_type != 'I' %}
+                <li>
+                  <form method="post" action="{% url 'promote_adjudicator' slug=tournament.slug pk=row.adj.pk %}">
+                    {% csrf_token %}<input type="hidden" name="promote_to" value="I">
+                    <button type="submit" class="dropdown-item text-primary"><i class="bi bi-star-fill"></i> Set as Independent (IA)</button>
+                  </form>
+                </li>
+                {% endif %}
+                {% if row.adj.adj_type != 'S' %}
+                <li>
+                  <form method="post" action="{% url 'promote_adjudicator' slug=tournament.slug pk=row.adj.pk %}">
+                    {% csrf_token %}<input type="hidden" name="promote_to" value="S">
+                    <button type="submit" class="dropdown-item"><i class="bi bi-person-check"></i> Set as School Judge</button>
+                  </form>
+                </li>
+                {% endif %}
+                {% if row.adj.adj_type != 'N' %}
+                <li>
+                  <form method="post" action="{% url 'promote_adjudicator' slug=tournament.slug pk=row.adj.pk %}">
+                    {% csrf_token %}<input type="hidden" name="promote_to" value="N">
+                    <button type="submit" class="dropdown-item text-warning"><i class="bi bi-arrow-down-circle"></i> Set as Trainee</button>
+                  </form>
+                </li>
+                {% endif %}
+              </ul>
+            </div>
+            <a href="{% url 'adjudicator_delete' slug=tournament.slug pk=row.adj.pk %}" class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i></a>
           </td>
         </tr>
-        {% empty %}<tr><td colspan="6" class="text-center text-muted py-3">No adjudicators yet.</td></tr>
+        {% empty %}
+        <tr><td colspan="9" class="text-center text-muted py-3">No adjudicators yet.</td></tr>
         {% endfor %}
       </tbody>
     </table>

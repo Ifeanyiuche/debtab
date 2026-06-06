@@ -1,68 +1,93 @@
 {% extends "base.html" %}
 {% block title %}Speaker Tab — {{ tournament.name }}{% endblock %}
+
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h3 class="fw-bold mb-0"><i class="bi bi-trophy"></i> Speaker Tab</h3>
-  <div class="input-group" style="max-width:280px;">
-    <span class="input-group-text"><i class="bi bi-search"></i></span>
+<div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+  <div>
+    <h3 class="fw-bold mb-0"><i class="bi bi-trophy"></i> Speaker Tab</h3>
+    <span class="badge bg-dark fw-normal small mt-1"><i class="bi bi-lock"></i> Tab Master view — all rounds shown</span>
+  </div>
+  <div class="input-group" style="max-width:300px;">
+    <span class="input-group-text bg-dark text-white border-0"><i class="bi bi-search"></i></span>
     <input type="text" id="spkSearch" class="form-control" placeholder="Find in table...">
   </div>
 </div>
+<div class="alert alert-secondary py-2 small mb-3">
+  <i class="bi bi-eye"></i> Viewing all rounds including <strong>silent</strong> and <strong>hidden-from-public</strong> rounds.
+  Ironman (absent) scores are excluded from individual speaker rankings.
+  <a href="{% url 'tournament_overview' slug=tournament.slug %}" class="ms-2 text-decoration-none">Manage visibility →</a>
+</div>
+
 <div class="card border-0 shadow-sm">
   <div class="table-responsive">
     <table class="table table-hover table-sm mb-0 align-middle" id="spkTabTable">
       <thead class="table-dark">
         <tr>
-          <th style="width:36px;">#</th>
-          <th>Speaker</th>
-          <th>Categories</th>
-          <th>Team</th>
-          {% for r in rounds %}<th class="text-center">R{{ r.seq }}</th>{% endfor %}
-          <th class="text-center fw-bold">Total</th>
-          <th class="text-center">Avg</th>
-          <th class="text-center">Stdev</th>
-          <th class="text-center">Trim</th>
+          <th class="text-center" style="width:40px;">&#8645;</th>
+          <th><i class="bi bi-person-fill"></i> Speaker</th>
+          <th><i class="bi bi-people-fill"></i> Team</th>
+          <th><i class="bi bi-tags-fill"></i> Cat.</th>
+          {% for r in rounds %}
+          <th class="text-center" style="min-width:50px;">
+            R{{ r.seq }}
+            {% if r.silent %}<br><span class="badge bg-secondary" style="font-size:.6rem;">Silent</span>{% endif %}
+            {% if not r.public_tab_visible %}<br><span class="badge bg-warning text-dark" style="font-size:.6rem;">Hidden</span>{% endif %}
+          </th>
+          {% endfor %}
+          <th class="text-center fw-bold" title="Total score">Total</th>
+          <th class="text-center" title="Average per speech">Avg</th>
+          <th class="text-center" title="Standard deviation">Stdev</th>
+          <th class="text-center" title="Trimmed mean (drop highest + lowest)">Trim</th>
         </tr>
       </thead>
       <tbody>
         {% for row in standings %}
         <tr class="spk-row">
-          <td class="fw-bold text-muted">{{ row.rank }}</td>
+          <td class="text-center fw-bold text-muted">{{ row.rank }}</td>
           <td class="fw-semibold">{{ row.speaker.name }}</td>
-          <td class="small text-muted">
-            {% if row.speaker.is_esl %}<span class="badge bg-info text-dark">ESL</span>{% endif %}
-            {% if row.speaker.is_efl %}<span class="badge bg-warning text-dark">EFL</span>{% endif %}
-            {% if row.speaker.is_novice %}<span class="badge bg-secondary">Novice</span>{% endif %}
-            {% if row.speaker.is_schools %}<span class="badge bg-success">Schools</span>{% endif %}
-          </td>
           <td class="small">
             {% for team in row.speaker.teams.all %}
-              <span class="text-muted">{{ team.emoji }} {{ team.name }}</span>
+              {% if team.emoji %}{{ team.emoji }} {% endif %}<span class="text-muted">{{ team.name }}</span>
             {% endfor %}
           </td>
+          <td class="small">
+            {% if row.speaker.is_esl %}<span class="badge bg-info text-dark">ESL</span> {% endif %}
+            {% if row.speaker.is_efl %}<span class="badge bg-warning text-dark">EFL</span> {% endif %}
+            {% if row.speaker.is_novice %}<span class="badge bg-secondary">Novice</span> {% endif %}
+            {% if row.speaker.is_schools %}<span class="badge bg-success">Schools</span>{% endif %}
+            {% if not row.speaker.is_esl and not row.speaker.is_efl and not row.speaker.is_novice and not row.speaker.is_schools %}<span class="text-muted">—</span>{% endif %}
+          </td>
           {% for r in rounds %}
-          <td class="text-center" style="min-width:40px;">
-            {% if row.scores_by_round %}
-              {% for seq, sc in row.scores_by_round.items %}{% if seq == r.seq %}
-                <span class="fw-semibold">{{ sc|floatformat:0 }}</span>
-              {% endif %}{% endfor %}
-            {% else %}<span class="text-muted small">—</span>{% endif %}
+          <td class="text-center" style="min-width:44px;">
+            {% with found=False %}
+            {% for seq, sc in row.scores_by_round.items %}{% if seq == r.seq %}
+              <span class="fw-semibold">{{ sc|floatformat:0 }}</span>
+            {% endif %}{% endfor %}
+            {% endwith %}
           </td>
           {% endfor %}
-          <td class="text-center fw-bold">{{ row.total_score|floatformat:2 }}</td>
+          <td class="text-center fw-bold">{{ row.total_score|floatformat:0 }}</td>
           <td class="text-center">{{ row.average|floatformat:2 }}</td>
           <td class="text-center text-muted">{{ row.stdev }}</td>
           <td class="text-center text-muted">{{ row.trimmed }}</td>
         </tr>
         {% empty %}
-        <tr><td colspan="20" class="text-center text-muted py-4">No results entered yet.</td></tr>
+        <tr><td colspan="20" class="text-center text-muted py-4">
+          No results entered yet. Enter speaker scores on the ballot to see this tab populate.
+        </td></tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
 </div>
-{% if standings %}<div class="mt-2 text-muted small">{{ standings|length }} speakers &nbsp;|&nbsp; <a href="{% url 'public_speaker_tab' slug=tournament.slug %}" target="_blank"><i class="bi bi-eye"></i> Public view</a></div>{% endif %}
+{% if standings %}
+<div class="mt-2 text-muted small d-flex gap-3">
+  <span>{{ standings|length }} speakers</span>
+  <a href="{% url 'public_speaker_tab' slug=tournament.slug %}" target="_blank"><i class="bi bi-eye"></i> Public view</a>
+</div>
+{% endif %}
 {% endblock %}
+
 {% block extra_js %}
 <script>
 document.getElementById("spkSearch").addEventListener("input", function () {

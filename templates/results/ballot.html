@@ -1,4 +1,4 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 {% block title %}Ballot — {{ round.name }} — {{ tournament.name }}{% endblock %}
 
 {% block content %}
@@ -13,92 +13,166 @@
 </div>
 
 {% if debate.venue %}
-<p class="text-muted"><i class="bi bi-door-open"></i> Room: <strong>{{ debate.venue.name }}</strong></p>
+<p class="text-muted mb-2"><i class="bi bi-door-open"></i> Room: <strong>{{ debate.venue.name }}</strong></p>
 {% endif %}
 
 {% if existing_ballot %}
-<div class="alert alert-warning py-2">
+<div class="alert alert-warning py-2 mb-3">
   <i class="bi bi-pencil-square"></i> Editing existing confirmed ballot. Save to overwrite.
 </div>
 {% endif %}
 
+<div id="formError" class="alert alert-danger py-2 mb-3" style="display:none;">
+  <i class="bi bi-exclamation-triangle"></i> <span id="formErrorMsg"></span>
+</div>
+<div id="saveStatus" class="alert alert-success py-2 mb-3" style="display:none;">
+  <i class="bi bi-check-circle"></i> <span id="saveStatusMsg"></span>
+</div>
+
+{% if is_break_round %}
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- OUT-ROUND BALLOT — rankings only, no speaker scores -->
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="alert alert-primary py-2 mb-3">
+  <i class="bi bi-trophy-fill"></i>
+  {% if is_finals %}
+  <strong>Grand Final ballot</strong> — Assign final standings: Grand Winner, First Runner-up, Second Runner-up, Third Runner-up.
+  {% else %}
+  <strong>Out-round ballot</strong> — Rank the four teams from 1st to 4th place. No speaker scores required.
+  {% endif %}
+</div>
+
+<form method="post" id="ballotForm">
+  {% csrf_token %}
+
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-dark text-white fw-semibold">
+      <i class="bi bi-sort-numeric-down"></i> Team Rankings
+    </div>
+    <div class="card-body p-0">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th style="width:130px">Position</th>
+            <th>Team</th>
+            <th class="text-muted small">Institution</th>
+            <th class="text-center" style="width:140px">Rank</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for td in teams_data %}{% with dt=td.debate_team pos=td.pos %}
+          <tr>
+            <td>
+              <span class="badge fs-6
+                {% if pos == 'OG' %}bg-primary{% elif pos == 'OO' %}bg-danger{% elif pos == 'CG' %}bg-success{% else %}bg-warning text-dark{% endif %}">
+                {{ dt.position_label }}
+              </span>
+            </td>
+            <td class="fw-semibold">{{ dt.team.name }}</td>
+            <td class="small text-muted">{{ dt.team.institution.name|default:"—" }}</td>
+            <td class="text-center">
+              <select name="rank_{{ pos }}" class="form-select form-select-sm rank-sel" required>
+                <option value="">— select —</option>
+                {% if is_finals %}
+                <option value="1" {% if dt.rank == 1 %}selected{% endif %}>Grand Winner &nbsp;(3 pts)</option>
+                <option value="2" {% if dt.rank == 2 %}selected{% endif %}>First Runner-up (2 pts)</option>
+                <option value="3" {% if dt.rank == 3 %}selected{% endif %}>Second Runner-up (1 pt)</option>
+                <option value="4" {% if dt.rank == 4 %}selected{% endif %}>Third Runner-up &nbsp;(0 pts)</option>
+                {% else %}
+                <option value="1" {% if dt.rank == 1 %}selected{% endif %}>1st &nbsp;(3 pts)</option>
+                <option value="2" {% if dt.rank == 2 %}selected{% endif %}>2nd (2 pts)</option>
+                <option value="3" {% if dt.rank == 3 %}selected{% endif %}>3rd &nbsp;(1 pt)</option>
+                <option value="4" {% if dt.rank == 4 %}selected{% endif %}>4th &nbsp;(0 pts)</option>
+                {% endif %}
+              </select>
+            </td>
+          </tr>
+          {% endwith %}{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="d-flex gap-3 align-items-center flex-wrap">
+    <button type="submit" class="btn btn-success btn-lg px-5" id="saveBtn">
+      <i class="bi bi-save"></i> Save Break Round Results
+    </button>
+  </div>
+</form>
+
+{% else %}
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- PRELIM BALLOT — speaker scores + optional rank     -->
+<!-- ═══════════════════════════════════════════════════ -->
 <form method="post" id="ballotForm">
   {% csrf_token %}
   <div class="row g-3 mb-4" id="teamsContainer">
-    {% for td in teams_data %}
-    {% with dt=td.debate_team pos=dt.position speakers=td.speakers %}
+
+    {% for td in teams_data %}{% with dt=td.debate_team pos=td.pos speakers=td.speakers %}
     <div class="col-md-6">
       <div class="card border-0 shadow-sm h-100 team-card" data-pos="{{ pos }}">
-        <div class="card-header fw-bold text-white bg-{% if pos == 'OG' %}primary{% elif pos == 'OO' %}danger{% elif pos == 'CG' %}success{% else %}warning{% endif %} d-flex justify-content-between align-items-center">
+
+        <div class="card-header fw-bold d-flex justify-content-between align-items-center team-header">
           <span>{{ dt.position_label }}</span>
-          <span class="fs-6 fw-normal team-name">{{ dt.team.name }}</span>
+          <span class="fs-6 fw-normal">{{ dt.team.name }}</span>
         </div>
+
         <div class="card-body">
 
-          <!-- Speech 1 -->
-          <div class="mb-3 speech-row" data-speech="1">
-            <div class="d-flex align-items-center gap-2 mb-1">
-              <label class="form-label fw-semibold mb-0 flex-grow-1">Speech 1</label>
-              <div class="form-check form-switch mb-0 ironman-toggle" id="ironman_toggle_{{ pos }}_1" style="display:none;">
-                <input class="form-check-input ironman-check" type="checkbox" name="ironman_{{ pos }}_1" id="ironman_{{ pos }}_1" {% if td.score_1 and td.score_1.ironman %}checked{% endif %}>
-                <label class="form-check-label text-danger small" for="ironman_{{ pos }}_1"><i class="bi bi-shield-exclamation"></i> Ironman</label>
-              </div>
-            </div>
+          <!-- 1st Speaker -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold mb-1">1st Speaker</label>
             <div class="row g-2">
               <div class="col-8">
-                <select name="speaker_{{ pos }}_1" class="form-select speaker-select" data-pos="{{ pos }}" data-speech="1">
-                  <option value="">— Select speaker —</option>
-                  {% for spk in speakers %}
-                  <option value="{{ spk.pk }}" {% if td.score_1 and td.score_1.speaker and td.score_1.speaker.pk == spk.pk and not td.score_1.ironman %}selected{% endif %}>{{ spk.name }}</option>
-                  {% endfor %}
-                  <option value="ironman" {% if td.score_1 and td.score_1.ironman %}selected{% endif %}>Ironman</option>
+                <select name="speaker_{{ pos }}_1" class="form-select speaker-sel" data-speech="1">
+                  <option value="">— Select —</option>
+                  {% for spk in speakers %}<option value="{{ spk.pk }}"{% if td.score_1 and td.score_1.speaker and td.score_1.speaker.pk == spk.pk and not td.score_1.ironman %} selected{% endif %}>{{ spk.name }}</option>{% endfor %}
+                  <option value="ironman"{% if td.score_1 and td.score_1.ironman %} selected{% endif %}>Ironman (absent)</option>
                 </select>
               </div>
               <div class="col-4">
-                <input type="number" name="score_{{ pos }}_1" class="form-control score-input" min="{{ tournament.speaker_score_min }}" max="{{ tournament.speaker_score_max }}" step="0.5" placeholder="Score" value="{% if td.score_1 %}{{ td.score_1.score }}{% endif %}" required>
+                <input type="number" name="score_{{ pos }}_1" class="form-control score-inp"
+                       min="{{ tournament.speaker_score_min }}" max="{{ tournament.speaker_score_max }}"
+                       step="0.5" placeholder="Score" required
+                       value="{% if td.score_1 %}{{ td.score_1.score }}{% endif %}">
               </div>
             </div>
           </div>
 
-          <!-- Speech 2 -->
-          <div class="mb-3 speech-row" data-speech="2">
-            <div class="d-flex align-items-center gap-2 mb-1">
-              <label class="form-label fw-semibold mb-0 flex-grow-1">Speech 2</label>
-              <div class="form-check form-switch mb-0 ironman-toggle" id="ironman_toggle_{{ pos }}_2" style="display:none;">
-                <input class="form-check-input ironman-check" type="checkbox" name="ironman_{{ pos }}_2" id="ironman_{{ pos }}_2" {% if td.score_2 and td.score_2.ironman %}checked{% endif %}>
-                <label class="form-check-label text-danger small" for="ironman_{{ pos }}_2"><i class="bi bi-shield-exclamation"></i> Ironman</label>
-              </div>
-            </div>
+          <!-- 2nd Speaker -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold mb-1">2nd Speaker</label>
             <div class="row g-2">
               <div class="col-8">
-                <select name="speaker_{{ pos }}_2" class="form-select speaker-select" data-pos="{{ pos }}" data-speech="2">
-                  <option value="">— Select speaker —</option>
-                  {% for spk in speakers %}
-                  <option value="{{ spk.pk }}" {% if td.score_2 and td.score_2.speaker and td.score_2.speaker.pk == spk.pk and not td.score_2.ironman %}selected{% endif %}>{{ spk.name }}</option>
-                  {% endfor %}
-                  <option value="ironman" {% if td.score_2 and td.score_2.ironman %}selected{% endif %}>Ironman</option>
+                <select name="speaker_{{ pos }}_2" class="form-select speaker-sel" data-speech="2">
+                  <option value="">— Select —</option>
+                  {% for spk in speakers %}<option value="{{ spk.pk }}"{% if td.score_2 and td.score_2.speaker and td.score_2.speaker.pk == spk.pk and not td.score_2.ironman %} selected{% endif %}>{{ spk.name }}</option>{% endfor %}
+                  <option value="ironman"{% if td.score_2 and td.score_2.ironman %} selected{% endif %}>Ironman (absent)</option>
                 </select>
               </div>
               <div class="col-4">
-                <input type="number" name="score_{{ pos }}_2" class="form-control score-input" min="{{ tournament.speaker_score_min }}" max="{{ tournament.speaker_score_max }}" step="0.5" placeholder="Score" value="{% if td.score_2 %}{{ td.score_2.score }}{% endif %}" required>
+                <input type="number" name="score_{{ pos }}_2" class="form-control score-inp"
+                       min="{{ tournament.speaker_score_min }}" max="{{ tournament.speaker_score_max }}"
+                       step="0.5" placeholder="Score" required
+                       value="{% if td.score_2 %}{{ td.score_2.score }}{% endif %}">
               </div>
             </div>
           </div>
 
-          <!-- Team total and rank (auto-calculated) -->
+          <!-- Total + Rank -->
           <div class="d-flex justify-content-between align-items-center mt-2 p-2 bg-light rounded">
             <div>
               <span class="text-muted small">Total: </span>
-              <span class="fw-bold team-total" id="total_{{ pos }}">—</span>
+              <span class="fw-bold fs-5 team-total">—</span>
             </div>
-            <div>
-              <label class="form-label mb-0 small text-muted me-2">Rank:</label>
-              <select name="rank_{{ pos }}" class="form-select form-select-sm rank-select d-inline-block" style="width:70px;" id="rank_{{ pos }}">
+            <div class="d-flex align-items-center gap-2">
+              <label class="form-label mb-0 small text-muted">Rank:</label>
+              <select name="rank_{{ pos }}" class="form-select form-select-sm rank-sel d-inline-block" style="width:76px;">
                 <option value="">—</option>
-                <option value="1" {% if dt.rank == 1 %}selected{% endif %}>1st</option>
-                <option value="2" {% if dt.rank == 2 %}selected{% endif %}>2nd</option>
-                <option value="3" {% if dt.rank == 3 %}selected{% endif %}>3rd</option>
-                <option value="4" {% if dt.rank == 4 %}selected{% endif %}>4th</option>
+                <option value="1"{% if td.has_saved_scores and dt.rank == 1 %} selected{% endif %}>1st</option>
+                <option value="2"{% if td.has_saved_scores and dt.rank == 2 %} selected{% endif %}>2nd</option>
+                <option value="3"{% if td.has_saved_scores and dt.rank == 3 %} selected{% endif %}>3rd</option>
+                <option value="4"{% if td.has_saved_scores and dt.rank == 4 %} selected{% endif %}>4th</option>
               </select>
             </div>
           </div>
@@ -106,91 +180,222 @@
         </div>
       </div>
     </div>
-    {% endwith %}
-    {% endfor %}
+    {% endwith %}{% endfor %}
+
   </div>
 
-  <div class="d-flex gap-2">
+  <div class="d-flex gap-3 align-items-center flex-wrap">
     <button type="button" class="btn btn-outline-secondary" id="autoRankBtn">
-      <i class="bi bi-sort-numeric-down"></i> Auto-Rank by Score
+      <i class="bi bi-sort-numeric-down"></i> Re-rank by Score
     </button>
-    <button type="submit" class="btn btn-success btn-lg px-5">
+    <button type="submit" class="btn btn-success btn-lg px-5" id="saveBtn">
       <i class="bi bi-save"></i> Save Ballot
     </button>
   </div>
 </form>
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}
+{% if is_break_round %}
 <script>
-document.addEventListener("DOMContentLoaded", function () {
-  // ── Score totals ────────────────────────────────────────────────
-  function updateTotals() {
-    document.querySelectorAll(".team-card").forEach(function (card) {
-      const pos = card.dataset.pos;
-      const s1 = parseFloat(card.querySelector("[name='score_" + pos + "_1']").value) || 0;
-      const s2 = parseFloat(card.querySelector("[name='score_" + pos + "_2']").value) || 0;
-      const totalEl = card.querySelector(".team-total");
-      if (s1 || s2) {
-        totalEl.textContent = (s1 + s2).toFixed(1);
-        totalEl.dataset.total = s1 + s2;
-      } else {
-        totalEl.textContent = "—";
-        totalEl.dataset.total = 0;
-      }
+(function () {
+  "use strict";
+
+  var sels = Array.from(document.querySelectorAll(".rank-sel"));
+
+  function syncOptions() {
+    // Collect every rank that has been chosen somewhere
+    var chosen = {};
+    sels.forEach(function (sel) {
+      if (sel.value) chosen[sel.value] = true;
+    });
+
+    // For each dropdown, hide ranks already taken by another dropdown
+    sels.forEach(function (sel) {
+      var mine = sel.value;
+      Array.from(sel.options).forEach(function (opt) {
+        if (!opt.value) return;                     // always keep "— select —"
+        opt.hidden = chosen[opt.value] && opt.value !== mine;
+      });
     });
   }
 
-  document.querySelectorAll(".score-input").forEach(function (inp) {
-    inp.addEventListener("input", updateTotals);
-  });
-
-  // ── Ironman toggle logic ─────────────────────────────────────────
-  function refreshIronmanToggle(pos, speech) {
-    const sel = document.querySelector("[name='speaker_" + pos + "_" + speech + "']");
-    const otherSpeech = speech === "1" ? "2" : "1";
-    const otherSel = document.querySelector("[name='speaker_" + pos + "_" + otherSpeech + "']");
-    const toggle = document.getElementById("ironman_toggle_" + pos + "_" + speech);
-
-    if (!sel || !toggle) return;
-    const val = sel.value;
-    const otherVal = otherSel ? otherSel.value : "";
-
-    // Show toggle if: "ironman" selected in dropdown, or same real speaker chosen for both slots
-    const showToggle = val === "ironman" || (val && val !== "" && val === otherVal);
-    toggle.style.display = showToggle ? "block" : "none";
-    if (!showToggle) {
-      toggle.querySelector(".ironman-check").checked = false;
-    }
+  function showError(msg) {
+    document.getElementById("formErrorMsg").textContent = msg;
+    document.getElementById("formError").style.display = "block";
+    document.getElementById("saveStatus").style.display = "none";
+  }
+  function hideError() {
+    document.getElementById("formError").style.display = "none";
   }
 
-  document.querySelectorAll(".speaker-select").forEach(function (sel) {
+  sels.forEach(function (sel) {
     sel.addEventListener("change", function () {
-      const pos = this.dataset.pos;
-      const speech = this.dataset.speech;
-      refreshIronmanToggle(pos, speech);
-      // Also refresh the other speech slot in case of same-speaker detection
-      const otherSpeech = speech === "1" ? "2" : "1";
-      refreshIronmanToggle(pos, otherSpeech);
-    });
-    // Init on page load
-    refreshIronmanToggle(sel.dataset.pos, sel.dataset.speech);
-  });
-
-  // ── Auto-rank by total score ─────────────────────────────────────
-  document.getElementById("autoRankBtn").addEventListener("click", function () {
-    const cards = Array.from(document.querySelectorAll(".team-card"));
-    const scored = cards.map(function (c) {
-      return { pos: c.dataset.pos, total: parseFloat(c.querySelector(".team-total").dataset.total || 0) };
-    });
-    scored.sort(function (a, b) { return b.total - a.total; });
-    scored.forEach(function (item, i) {
-      const sel = document.getElementById("rank_" + item.pos);
-      if (sel) sel.value = i + 1;
+      syncOptions();
+      hideError();
     });
   });
 
-  updateTotals();
-});
+  document.getElementById("ballotForm").addEventListener("submit", function (e) {
+    var missing = sels.filter(function (s) { return !s.value; });
+    if (missing.length > 0) {
+      e.preventDefault();
+      showError("Select a rank for every team before saving.");
+    }
+  });
+
+  // Sync on load so pre-filled edits also hide taken options
+  syncOptions();
+})();
 </script>
+{% else %}
+<script>
+(function () {
+  "use strict";
+
+  var AJAX_URL  = "{% url 'ballot_save_ajax' slug=tournament.slug round_seq=round.seq debate_id=debate.pk %}";
+  var CSRF      = "{{ csrf_token }}";
+
+  var COLORS = { OG:"bg-primary text-white", OO:"bg-danger text-white", CG:"bg-success text-white", CO:"bg-warning text-dark" };
+  var POS_ORDER = { OG:0, OO:1, CG:2, CO:3 };
+
+  var cards     = Array.from(document.querySelectorAll(".team-card"));
+  var autoTimer = null;
+  var lastSaved = null;
+
+  cards.forEach(function (c) {
+    var h = c.querySelector(".team-header");
+    if (h && COLORS[c.dataset.pos]) h.className = "card-header fw-bold d-flex justify-content-between align-items-center " + COLORS[c.dataset.pos];
+  });
+
+  function showError(msg) {
+    document.getElementById("formErrorMsg").textContent = msg;
+    document.getElementById("formError").style.display = "block";
+    document.getElementById("saveStatus").style.display = "none";
+  }
+  function showSaved(msg) {
+    document.getElementById("saveStatusMsg").textContent = msg;
+    document.getElementById("saveStatus").style.display = "block";
+    document.getElementById("formError").style.display = "none";
+  }
+  function hideStatus() {
+    document.getElementById("formError").style.display = "none";
+    document.getElementById("saveStatus").style.display = "none";
+  }
+
+  function refreshAll() {
+    var totals = [];
+    var anyScored = false;
+
+    cards.forEach(function (card) {
+      var inputs = card.querySelectorAll(".score-inp");
+      var s1 = parseFloat(inputs[0] ? inputs[0].value : "") || 0;
+      var s2 = parseFloat(inputs[1] ? inputs[1].value : "") || 0;
+      var total = s1 + s2;
+      var el = card.querySelector(".team-total");
+      if (el) el.textContent = (s1 > 0 || s2 > 0) ? total.toFixed(1) : "—";
+      totals.push({ card: card, pos: card.dataset.pos, total: total });
+      if (s1 > 0 || s2 > 0) anyScored = true;
+    });
+
+    if (!anyScored) return;
+
+    totals.sort(function (a, b) {
+      if (b.total !== a.total) return b.total - a.total;
+      return (POS_ORDER[a.pos] !== undefined ? POS_ORDER[a.pos] : 99) -
+             (POS_ORDER[b.pos] !== undefined ? POS_ORDER[b.pos] : 99);
+    });
+    totals.forEach(function (item, i) {
+      var sel = item.card.querySelector(".rank-sel");
+      if (sel) sel.value = String(i + 1);
+    });
+  }
+
+  function syncSpeakers(card) {
+    var sels = card.querySelectorAll(".speaker-sel");
+    var s1 = sels[0], s2 = sels[1];
+    if (!s1 || !s2) return;
+    var v1 = s1.value, v2 = s2.value;
+    Array.from(s1.options).forEach(function (o) { o.disabled = false; });
+    Array.from(s2.options).forEach(function (o) { o.disabled = false; });
+    if (v1 && v1 !== "ironman") { Array.from(s2.options).forEach(function (o) { if (o.value === v1) o.disabled = true; }); }
+    if (v2 && v2 !== "ironman") { Array.from(s1.options).forEach(function (o) { if (o.value === v2) o.disabled = true; }); }
+  }
+
+  function validate() {
+    var missing = [];
+    cards.forEach(function (card) {
+      var inputs = card.querySelectorAll(".score-inp");
+      var s1 = parseFloat(inputs[0] ? inputs[0].value : "") || 0;
+      var s2 = parseFloat(inputs[1] ? inputs[1].value : "") || 0;
+      var hdr = card.querySelector(".team-header span:first-child");
+      if (!(s1 > 0 && s2 > 0)) missing.push(hdr ? hdr.textContent.trim() : card.dataset.pos);
+    });
+    return missing;
+  }
+
+  function isComplete() {
+    return cards.every(function (c) {
+      var ins = c.querySelectorAll(".score-inp");
+      return (parseFloat(ins[0] && ins[0].value) || 0) > 0 &&
+             (parseFloat(ins[1] && ins[1].value) || 0) > 0;
+    });
+  }
+
+  function formSnapshot() {
+    return new URLSearchParams(new FormData(document.getElementById("ballotForm"))).toString();
+  }
+
+  function doSave() {
+    var snap = formSnapshot();
+    if (snap === lastSaved) return;
+    showSaved("Saving…");
+    fetch(AJAX_URL, {
+      method: "POST",
+      headers: { "X-CSRFToken": CSRF, "Content-Type": "application/x-www-form-urlencoded" },
+      body: snap,
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (d.status === "ok") { lastSaved = snap; showSaved("Auto-saved ✓"); }
+      else showError("Auto-save failed: " + (d.message || "unknown error"));
+    })
+    .catch(function () { showError("Auto-save failed (network error)"); });
+  }
+
+  function scheduleAutoSave() {
+    clearTimeout(autoTimer);
+    if (!isComplete()) return;
+    autoTimer = setTimeout(doSave, 2000);
+  }
+
+  cards.forEach(function (card) {
+    card.querySelectorAll(".score-inp").forEach(function (inp) {
+      inp.addEventListener("input", function () { hideStatus(); refreshAll(); scheduleAutoSave(); });
+    });
+    card.querySelectorAll(".speaker-sel").forEach(function (sel) {
+      sel.addEventListener("change", function () { syncSpeakers(card); scheduleAutoSave(); });
+    });
+    syncSpeakers(card);
+  });
+
+  document.getElementById("autoRankBtn").addEventListener("click", refreshAll);
+
+  document.getElementById("ballotForm").addEventListener("submit", function (e) {
+    var missing = validate();
+    if (missing.length > 0) {
+      e.preventDefault();
+      showError("Enter scores for ALL 4 teams before saving. Missing: " + missing.join(", ") + ".");
+      return;
+    }
+    clearTimeout(autoTimer);
+  });
+
+  refreshAll();
+  if (isComplete()) { lastSaved = formSnapshot(); showSaved("Ballot loaded ✓"); }
+
+})();
+</script>
+{% endif %}
 {% endblock %}
