@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Background -->
+  <rect width="64" height="64" rx="12" fill="#212529"/>
+
+  <!-- Trophy cup body -->
+  <path d="M19 10 h26 l-4 22 q-1 7-9 7 q-8 0-9-7 Z" fill="#ffc107"/>
+
+  <!-- Left handle -->
+  <path d="M19 14 h-5 q-5 0-5 6 q0 5 5 7 l5-1"
+        stroke="#ffc107" stroke-width="2.2" fill="none"
+        stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Right handle -->
+  <path d="M45 14 h5 q5 0 5 6 q0 5-5 7 l-5-1"
+        stroke="#ffc107" stroke-width="2.2" fill="none"
+        stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Stem -->
+  <rect x="29.5" y="39" width="5" height="8" rx="1" fill="#ffc107"/>
+
+  <!-- Base -->
+  <rect x="20" y="47" width="24" height="5" rx="2.5" fill="#ffc107"/>
+
+  <!-- Small checkmark inside cup (tabulation tick) -->
+  <polyline points="25,22 30,27 39,17"
+            stroke="#212529" stroke-width="3" fill="none"
+            stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
