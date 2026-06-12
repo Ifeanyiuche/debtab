@@ -1,4 +1,4 @@
-﻿/* DebTab — Custom Styles */
+/* DebTab — Custom Styles */
 
 body { font-family: "Segoe UI", system-ui, sans-serif; }
 
@@ -27,3 +27,34 @@ body { font-family: "Segoe UI", system-ui, sans-serif; }
 /* Navbar tweaks */
 .navbar-dark .nav-link { color: rgba(255,255,255,0.8); }
 .navbar-dark .nav-link:hover { color: #fff; }
+
+/* ── Homepage ────────────────────────────────────── */
+
+.dt-hero {
+  background: linear-gradient(135deg, #1a1f36 0%, #212529 55%, #1d3d2f 100%);
+  border-radius: 0.75rem;
+}
+
+/* "How it works" numbered circles */
+.dt-step-num {
+  width: 2.5rem;
+  height: 2.5rem;
+  background: #0d6efd;
+  color: #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+/* ── Mobile sub-nav ──────────────────────────────── */
+
+/* On large screens the sub-nav is a standard horizontal navbar.
+   On smaller screens Bootstrap collapses it — the toggler reveals
+   a stacked vertical menu which is the safest approach for dropdowns. */
+@media (max-width: 991.98px) {
+  #tournamentSubNav .navbar-nav .nav-link { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+  #tournamentSubNav .dropdown-menu { position: static !important; box-shadow: none; border: 0; padding-left: 1rem; }
+}

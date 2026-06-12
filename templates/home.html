@@ -1,41 +1,215 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
+{% load static %}
 {% block title %}DebTab — Debate Tabulation System{% endblock %}
 {% block content %}
-<div class="row justify-content-center mt-5">
-  <div class="col-lg-7 text-center">
-    <h1 class="display-5 fw-bold mb-2"><i class="bi bi-clipboard2-data text-primary"></i> DebTab</h1>
-    <p class="lead text-muted mb-4">Professional debate tabulation for British Parliamentary, World Schools, and Public Speaking tournaments.</p>
-    <div class="d-flex justify-content-center gap-3">
-      <a href="{% url 'register' %}" class="btn btn-primary btn-lg px-5"><i class="bi bi-person-plus"></i> Register</a>
-      <a href="{% url 'login' %}" class="btn btn-outline-secondary btn-lg px-5"><i class="bi bi-box-arrow-in-right"></i> Log In</a>
+
+<!-- Hero -->
+<div class="dt-hero text-white text-center py-5 mb-5">
+  <div class="py-2">
+    <img src="{% static 'img/favicon.svg' %}" alt="" width="64" height="64" class="mb-3">
+    <h1 class="display-4 fw-bold mb-2">DebTab</h1>
+    <p class="lead mb-1 opacity-75">The debate management platform built for serious tournament directors.</p>
+    <p class="small mb-4" style="opacity:.5;">British Parliamentary &nbsp;·&nbsp; World Schools &nbsp;·&nbsp; Public Speaking</p>
+    <div class="d-flex justify-content-center gap-3 flex-wrap">
+      <a href="{% url 'register' %}" class="btn btn-warning btn-lg fw-semibold px-5">
+        <i class="bi bi-person-plus"></i> Get Started Free
+      </a>
+      <a href="{% url 'login' %}" class="btn btn-outline-light btn-lg px-5">
+        <i class="bi bi-box-arrow-in-right"></i> Log In
+      </a>
     </div>
-    <hr class="my-5">
-    <div class="row g-4 text-start">
-      <div class="col-md-4">
-        <div class="card h-100 border-0 shadow-sm">
-          <div class="card-body">
-            <h5 class="card-title"><i class="bi bi-lightning-charge text-warning"></i> Fast Draw Generation</h5>
-            <p class="card-text small text-muted">Automatic power-paired draws with BP position rotation. Editable at any time.</p>
-          </div>
-        </div>
+  </div>
+</div>
+
+<!-- Feature strip -->
+<div class="card border-0 shadow-sm bg-dark text-white mb-5">
+  <div class="card-body py-3">
+    <div class="row g-0 text-center">
+      <div class="col-6 col-md-2 py-2 border-end border-secondary">
+        <i class="bi bi-lightning-charge-fill text-warning fs-4 d-block mb-1"></i>
+        <div class="small fw-semibold">Fast Draws</div>
       </div>
-      <div class="col-md-4">
-        <div class="card h-100 border-0 shadow-sm">
-          <div class="card-body">
-            <h5 class="card-title"><i class="bi bi-trophy text-success"></i> Live Tab</h5>
-            <p class="card-text small text-muted">Real-time team and speaker standings updated as ballots are entered.</p>
-          </div>
-        </div>
+      <div class="col-6 col-md-2 py-2 border-end border-secondary">
+        <i class="bi bi-bar-chart-fill text-info fs-4 d-block mb-1"></i>
+        <div class="small fw-semibold">Live Tab</div>
       </div>
-      <div class="col-md-4">
-        <div class="card h-100 border-0 shadow-sm">
-          <div class="card-body">
-            <h5 class="card-title"><i class="bi bi-globe text-info"></i> Public View</h5>
-            <p class="card-text small text-muted">Separate public-facing page for participants to view draws and results.</p>
-          </div>
-        </div>
+      <div class="col-6 col-md-2 py-2 border-end border-secondary">
+        <i class="bi bi-trophy-fill text-warning fs-4 d-block mb-1"></i>
+        <div class="small fw-semibold">Out-rounds</div>
+      </div>
+      <div class="col-6 col-md-2 py-2 border-end border-secondary">
+        <i class="bi bi-person-badge-fill text-success fs-4 d-block mb-1"></i>
+        <div class="small fw-semibold">Judge Rankings</div>
+      </div>
+      <div class="col-6 col-md-2 py-2 border-end border-secondary">
+        <i class="bi bi-chat-left-text-fill text-primary fs-4 d-block mb-1"></i>
+        <div class="small fw-semibold">Feedback</div>
+      </div>
+      <div class="col-6 col-md-2 py-2">
+        <i class="bi bi-globe2 text-danger fs-4 d-block mb-1"></i>
+        <div class="small fw-semibold">Public View</div>
       </div>
     </div>
   </div>
 </div>
+
+<!-- How it works -->
+<div class="mb-5">
+  <h2 class="fw-bold text-center mb-4">How it works</h2>
+  <div class="row g-4">
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm h-100 text-center p-3 hover-lift">
+        <div class="dt-step-num mx-auto mb-3">1</div>
+        <h6 class="fw-bold">Create your tournament</h6>
+        <p class="small text-muted mb-0">Choose your format, set prelim rounds, and configure speaker score ranges.</p>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm h-100 text-center p-3 hover-lift">
+        <div class="dt-step-num mx-auto mb-3">2</div>
+        <h6 class="fw-bold">Register participants</h6>
+        <p class="small text-muted mb-0">Add teams, adjudicators, and venues. Batch upload supported.</p>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm h-100 text-center p-3 hover-lift">
+        <div class="dt-step-num mx-auto mb-3">3</div>
+        <h6 class="fw-bold">Generate draws &amp; enter ballots</h6>
+        <p class="small text-muted mb-0">Auto power-paired draws with institution clash avoidance. Enter results per room.</p>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm h-100 text-center p-3 hover-lift">
+        <div class="dt-step-num mx-auto mb-3">4</div>
+        <h6 class="fw-bold">Run the break</h6>
+        <p class="small text-muted mb-0">Generate elimination rounds automatically. Results feed into the public tab live.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Feature cards -->
+<div class="mb-5">
+  <h2 class="fw-bold text-center mb-4">Everything you need to run a tournament</h2>
+  <div class="row g-4">
+
+    <div class="col-md-4">
+      <div class="card h-100 border-0 shadow-sm hover-lift">
+        <div class="card-body">
+          <div class="mb-2">
+            <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-2 rounded-pill">
+              <i class="bi bi-diagram-3-fill"></i> Draw
+            </span>
+          </div>
+          <h5 class="fw-bold">Smart Draw Generation</h5>
+          <p class="text-muted small mb-0">Power-paired draws that avoid institution clashes and repeat pairings. Edit any room manually after generation.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="card h-100 border-0 shadow-sm hover-lift">
+        <div class="card-body">
+          <div class="mb-2">
+            <span class="badge bg-success bg-opacity-10 text-success px-3 py-2 rounded-pill">
+              <i class="bi bi-card-checklist"></i> Ballots
+            </span>
+          </div>
+          <h5 class="fw-bold">Ballot Entry &amp; Confirmation</h5>
+          <p class="text-muted small mb-0">Enter speaker scores or out-round rankings per room. Auto-saves and confirms results in real time.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="card h-100 border-0 shadow-sm hover-lift">
+        <div class="card-body">
+          <div class="mb-2">
+            <span class="badge bg-warning bg-opacity-10 text-warning px-3 py-2 rounded-pill">
+              <i class="bi bi-trophy-fill"></i> Breaks
+            </span>
+          </div>
+          <h5 class="fw-bold">Elimination Round Management</h5>
+          <p class="text-muted small mb-0">Quarterfinals through Grand Final. Advancing teams seeded automatically. Judge break pool cascades per round.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="card h-100 border-0 shadow-sm hover-lift">
+        <div class="card-body">
+          <div class="mb-2">
+            <span class="badge bg-info bg-opacity-10 text-info px-3 py-2 rounded-pill">
+              <i class="bi bi-person-badge-fill"></i> Judges
+            </span>
+          </div>
+          <h5 class="fw-bold">Judge Power Rankings</h5>
+          <p class="text-muted small mb-0">Feedback-driven rankings with CAP, Independent, School, and Trainee judge types. Ignore outlier responses.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="card h-100 border-0 shadow-sm hover-lift">
+        <div class="card-body">
+          <div class="mb-2">
+            <span class="badge bg-danger bg-opacity-10 text-danger px-3 py-2 rounded-pill">
+              <i class="bi bi-globe2"></i> Public
+            </span>
+          </div>
+          <h5 class="fw-bold">Live Public View</h5>
+          <p class="text-muted small mb-0">Share a link with participants to view the draw, tab, and results. You control what's released and when.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="card h-100 border-0 shadow-sm hover-lift">
+        <div class="card-body">
+          <div class="mb-2">
+            <span class="badge bg-secondary bg-opacity-10 text-secondary px-3 py-2 rounded-pill">
+              <i class="bi bi-chat-left-text-fill"></i> Feedback
+            </span>
+          </div>
+          <h5 class="fw-bold">Adjudicator Feedback</h5>
+          <p class="text-muted small mb-0">Speakers and panellists submit feedback per round. Scores feed directly into judge power rankings.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Formats -->
+<div class="card border-0 shadow-sm bg-dark text-white text-center mb-5">
+  <div class="card-body py-5">
+    <h2 class="fw-bold mb-2">Supported formats</h2>
+    <p class="mb-4" style="opacity:.6;">Pick the format that matches your tournament — DebTab handles the rules for you.</p>
+    <div class="d-flex justify-content-center gap-3 flex-wrap">
+      <div class="px-4 py-2 border border-secondary rounded-3">
+        <div class="fw-bold text-warning">British Parliamentary</div>
+        <div class="small" style="opacity:.6;">4 teams · OG/OO/CG/CO · Ironman</div>
+      </div>
+      <div class="px-4 py-2 border border-secondary rounded-3">
+        <div class="fw-bold text-info">World Schools</div>
+        <div class="small" style="opacity:.6;">2 teams · Reply speeches · WSDC scoring</div>
+      </div>
+      <div class="px-4 py-2 border border-secondary rounded-3">
+        <div class="fw-bold text-success">Public Speaking</div>
+        <div class="small" style="opacity:.6;">Individual speakers · Weighted criteria</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Final CTA -->
+<div class="text-center mb-5 pb-3">
+  <h2 class="fw-bold mb-2">Ready to run your tournament?</h2>
+  <p class="text-muted mb-4">Free to use. No setup fees. Start in under a minute.</p>
+  <a href="{% url 'register' %}" class="btn btn-primary btn-lg px-5 fw-semibold">
+    <i class="bi bi-person-plus"></i> Create Your Account
+  </a>
+  <div class="mt-3 text-muted small">Already have an account? <a href="{% url 'login' %}">Log in</a></div>
+</div>
+
 {% endblock %}
