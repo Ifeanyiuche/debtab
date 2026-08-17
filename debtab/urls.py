@@ -5,10 +5,14 @@ from django.conf.urls.static import static
 from django.contrib.auth import views as auth_views
 from apps.tournaments.views import home
 from apps.tournaments.urls import tournament_urls
+from .health import healthz
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("", home, name="home"),
+    # Uptime monitors point here. Returns 503 if the database is unreachable,
+    # which is the failure the site could previously hide indefinitely.
+    path("healthz", healthz, name="healthz"),
     path("accounts/", include("apps.accounts.urls")),
     path("accounts/password-reset/",
          auth_views.PasswordResetView.as_view(template_name="accounts/password_reset.html"),

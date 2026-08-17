@@ -1,24 +1,64 @@
+# Render Blueprint for DebTab.
+#
+# FIX #4: ALLOWED_HOSTS previously read ".onrender.com", which does not include
+# getdebtab.com. The live site only worked because the value had been overridden
+# by hand in the dashboard, so this file no longer described the running service
+# — anyone redeploying from it got a site that returned 400 on every request.
+#
+# FIX #9: migrate is still in buildCommand, but deliberately rather than by
+# accident. Render's preDeployCommand is the correct hook for migrations, but it
+# is available only on paid instance types, and this service runs on Free. The
+# `--noinput` flag and the explicit `&&` chaining mean a failed migration now
+# fails the build loudly instead of half-deploying. Move the migrate line to
+# preDeployCommand if this service is ever upgraded.
+#
+# The managed Render Postgres block has been REMOVED. The database now lives on
+# Supabase, whose free tier does not expire on a 30-day timer. Nothing in this
+# file requires a paid Render plan.
+#
+# Note there is no healthCheckPath here on purpose. Pointing Render's health
+# check at /healthz would mean that whenever the database is unreachable the
+# deploy itself fails — exactly when you most need to ship a fix. Use an
+# external uptime monitor against /healthz instead; see DEPLOYMENT.md.
+
 services:
   - type: web
     name: debtab
     runtime: python
     plan: free
-    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput && python manage.py migrate
-    startCommand: gunicorn debtab.wsgi --workers 2 --log-file -
+    branch: master
+    autoDeploy: true
+
+    buildCommand: "pip install -r requirements.txt && python manage.py collectstatic --noinput && python manage.py migrate --noinput"
+    startCommand: "gunicorn debtab.wsgi:application --workers 2 --threads 4 --timeout 60 --access-logfile - --error-logfile - --log-level info"
+
     envVars:
+      # Secrets: set in the Render dashboard, never committed to git.
+      # sync:false means "this value is managed manually; do not overwrite it".
       - key: DATABASE_URL
-        fromDatabase:
-          name: debtab-db
-          property: connectionString
+        sync: false
       - key: SECRET_KEY
         generateValue: true
+
       - key: DEBUG
         value: "False"
       - key: ALLOWED_HOSTS
-        value: ".onrender.com"
+        value: "getdebtab.com,www.getdebtab.com,debtab.onrender.com,.onrender.com"
+      - key: CSRF_TRUSTED_ORIGINS
+        value: "https://getdebtab.com,https://www.getdebtab.com,https://*.onrender.com"
+
+      # Supabase requires TLS on every connection.
+      - key: DB_SSL_REQUIRE
+        value: "True"
+      # False because DATABASE_URL must use Supabase's SESSION-mode pooler
+      # (port 5432), which supports prepared statements. Set this to True only
+      # if you switch to the transaction-mode pooler on port 6543.
+      - key: DISABLE_SERVER_SIDE_CURSORS
+        value: "False"
+
+      - key: LOG_LEVEL
+        value: "INFO"
+      - key: TIME_ZONE
+        value: "UTC"
       - key: PYTHON_VERSION
         value: "3.12.0"
-
-databases:
-  - name: debtab-db
-    plan: free

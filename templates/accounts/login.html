@@ -9,6 +9,7 @@
         <h2 class="card-title mb-4 text-center fw-bold"><i class="bi bi-box-arrow-in-right text-primary"></i> Tab Master Login</h2>
         <form method="post">
           {% csrf_token %}
+          {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
           {{ form|crispy }}
           <button type="submit" class="btn btn-primary w-100 mt-2">Log In</button>
         </form>
