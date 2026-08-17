@@ -1,0 +1,36 @@
+# Normalise line endings.
+#
+# Without this, editing files on Windows rewrote all 72 source files with CRLF
+# endings. Git saw every one of them as "modified" even though not a single
+# character of code had changed, which made `git status` useless and would have
+# buried every real change in a wall of whitespace noise.
+#
+# text=auto means: store LF in the repository, check out whatever is native to
+# the OS. Files listed explicitly below must keep LF even on Windows, because
+# they are executed on a Linux server where CRLF would break them.
+
+* text=auto
+
+*.py    text eol=lf
+*.html  text eol=lf
+*.css   text eol=lf
+*.js    text eol=lf
+*.yaml  text eol=lf
+*.yml   text eol=lf
+*.json  text eol=lf
+*.md    text eol=lf
+*.txt   text eol=lf
+*.sh    text eol=lf
+Procfile text eol=lf
+
+# Batch files must keep CRLF or Windows may mis-parse them.
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
+
+# Never touch binary content.
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.pdf   binary

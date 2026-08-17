@@ -28,3 +28,6 @@ env/
 # IDE
 .vscode/
 .idea/
+
+# Local database backups - never commit these, they contain real data
+backups/

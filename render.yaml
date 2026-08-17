@@ -13,8 +13,8 @@
 # preDeployCommand if this service is ever upgraded.
 #
 # The managed Render Postgres block has been REMOVED. The database now lives on
-# Supabase, whose free tier does not expire on a 30-day timer. Nothing in this
-# file requires a paid Render plan.
+# Neon, whose free tier never expires and whose compute wakes itself on the next
+# connection after idling. Nothing in this file requires a paid Render plan.
 #
 # Note there is no healthCheckPath here on purpose. Pointing Render's health
 # check at /healthz would mean that whenever the database is unreachable the
@@ -29,7 +29,11 @@ services:
     branch: master
     autoDeploy: true
 
-    buildCommand: "pip install -r requirements.txt && python manage.py collectstatic --noinput && python manage.py migrate --noinput"
+    # ensure_superuser runs here because Render Free has NO Shell tab — the
+    # usual `createsuperuser` route is simply not available on this plan. The
+    # command is idempotent: it creates the account only if it does not already
+    # exist, and never overwrites a password.
+    buildCommand: "pip install -r requirements.txt && python manage.py collectstatic --noinput && python manage.py migrate --noinput && python manage.py ensure_superuser"
     startCommand: "gunicorn debtab.wsgi:application --workers 2 --threads 4 --timeout 60 --access-logfile - --error-logfile - --log-level info"
 
     envVars:
@@ -47,12 +51,13 @@ services:
       - key: CSRF_TRUSTED_ORIGINS
         value: "https://getdebtab.com,https://www.getdebtab.com,https://*.onrender.com"
 
-      # Supabase requires TLS on every connection.
+      # Neon requires TLS on every connection.
       - key: DB_SSL_REQUIRE
         value: "True"
-      # False because DATABASE_URL must use Supabase's SESSION-mode pooler
-      # (port 5432), which supports prepared statements. Set this to True only
-      # if you switch to the transaction-mode pooler on port 6543.
+      # False because DATABASE_URL uses Neon's DIRECT endpoint (no "-pooler" in
+      # the hostname), which supports prepared statements and server-side
+      # cursors. Set this to True only if you switch to the pooled endpoint,
+      # which runs PgBouncer in transaction mode.
       - key: DISABLE_SERVER_SIDE_CURSORS
         value: "False"
 
